@@ -30,7 +30,7 @@ export const api = {
   check: (cid: string) => call<{ ok: true; orgId: string | null }>("GET", `/api/c/${cid}/check`),
   forms: (cid: string) => call<FormSummary[]>("GET", `/api/c/${cid}/forms`),
   fields: (cid: string, formId: number) => call<FieldInfo[]>("GET", `/api/c/${cid}/forms/${formId}/fields`),
-  match: (cid: string, body: { formId: number; fileFieldId: number; matchBy: MatchBy; keys: string[] }) =>
+  match: (cid: string, body: { formId: number; fileFieldId: number; matchBy: MatchBy; keys: string[][] }) =>
     call<MatchResult[]>("POST", `/api/c/${cid}/match`, body),
   record: (cid: string, recordId: number, formId: number, fileFieldId: number) =>
     call<RecordMatch>("GET", `/api/c/${cid}/records/${recordId}?formId=${formId}&fileFieldId=${fileFieldId}`),

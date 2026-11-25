@@ -3,6 +3,7 @@
 
 import { API_BASE, AUDIENCE, TOKEN_URL } from "./config";
 import { FIELD_TYPE, isIdentifierCandidate } from "../shared/fields";
+import { sameValue } from "../shared/identifiers";
 import type { AttachedFile, FieldInfo, FormSummary, RecordMatch } from "../shared/types";
 
 export class ApricotError extends Error {
@@ -119,8 +120,6 @@ export function parseAttached(value: unknown): AttachedFile | null {
   }
   return null;
 }
-
-const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
 
 export class ApricotClient {
   private fieldCache = new Map<number, { at: number; fields: FieldInfo[] }>();
@@ -277,18 +276,18 @@ export class ApricotClient {
   }
 
   /**
-   * Records on a form whose field equals `value`. Uses the DB-backed field filter
-   * (case-insensitive exact match). Results are re-checked here because the API
-   * silently ignores filters on unknown fields.
+   * Records on a form matching every (key, value) pair. Uses the DB-backed field filters,
+   * which combine with AND. Results are re-checked here because the API silently ignores
+   * filters on keys it doesn't know (which would otherwise look like "everything matched").
    */
-  async findByField(formId: number, fieldId: number, value: string) {
-    const body = await this.request("GET", "/records", {
-      query: { form_id: formId, [`filter[field_${fieldId}]`]: value, "page[size]": 25, "page[number]": 1 },
-    });
+  async findByFields(formId: number, criteria: { key: string; value: string; kind: "text" | "date" }[]) {
+    const query: Query = { form_id: formId, "page[size]": 25, "page[number]": 1 };
+    for (const c of criteria) query[`filter[${c.key}]`] = c.value;
+    const body = await this.request("GET", "/records", { query });
     const data: any[] = Array.isArray(body?.data) ? body.data : [];
     return data
       .map((r) => ({ id: Number(r.id), attributes: attrsOf(r) }))
-      .filter((r) => norm(r.attributes[`field_${fieldId}`]) === norm(value));
+      .filter((r) => criteria.every((c) => sameValue(r.attributes[c.key], c.value, c.kind)));
   }
 
   /** A short human label for a record, e.g. "Jane Doe", built from the form's fields. */

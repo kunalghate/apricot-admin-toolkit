@@ -4,6 +4,7 @@ import { APP_NAME, PORT, VERSION } from "./config";
 import { ApricotClient, ApricotError, attachedFile, fetchToken } from "./apricot";
 import { addConnection, getConnection, getSecret, listConnections, removeConnection } from "./store";
 import type { Environment, MatchBy, MatchResult, UploadOutcome } from "../shared/types";
+import { joinKey } from "../shared/identifiers";
 
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
 const ALLOWED_ORIGINS = new Set([...ALLOWED_HOSTS].map((h) => `http://${h}`));
@@ -136,25 +137,34 @@ export const routes = {
     GET: api(async (req) => json(await (await clientFor(param(req, "cid"))).fields(Number(param(req, "fid"))))),
   },
 
-  /** Look up which record each identifier belongs to. */
+  /** Look up which record each identifier (or composite of identifiers) belongs to. */
   "/api/c/:cid/match": {
     POST: api(async (req) => {
       const c = await clientFor(param(req, "cid"));
-      const body = (await req.json()) as { formId: number; fileFieldId: number; matchBy: MatchBy; keys: string[] };
+      const body = (await req.json()) as { formId: number; fileFieldId: number; matchBy: MatchBy; keys: string[][] };
       const formId = Number(body.formId);
       const fields = await c.fields(formId);
-      const keys = [...new Set((body.keys ?? []).map((k) => String(k).trim()).filter(Boolean))];
-      if (keys.length > 20_000) throw new HttpError(400, "That's a lot of files! Please do 20,000 or fewer at a time.");
+      const seen = new Set<string>();
+      const tuples = (body.keys ?? [])
+        .map((t) => t.map((v) => String(v).trim()))
+        .filter((t) => t.length > 0 && t.every(Boolean) && !seen.has(joinKey(t)) && seen.add(joinKey(t)));
+      if (tuples.length > 20_000) throw new HttpError(400, "That's a lot of files! Please do 20,000 or fewer at a time.");
+      const matchBy = body.matchBy;
+      if (matchBy.kind === "fields" && (matchBy.keys.length === 0 || matchBy.keys.some((k) => !/^field_\d+(_first|_last)?$/.test(k.key))))
+        throw new HttpError(400, "Choose which fields identify the records.");
 
-      const results = await pool(keys, 6, async (key): Promise<MatchResult> => {
+      const results = await pool(tuples, 6, async (values): Promise<MatchResult> => {
+        const key = joinKey(values);
         try {
-          if (body.matchBy.kind === "record_id") {
-            if (!/^\d+$/.test(key)) return { key, status: "not_found" };
-            const rec = await c.getRecord(Number(key));
+          if (matchBy.kind === "record_id") {
+            const id = values[0]!;
+            if (!/^\d+$/.test(id)) return { key, status: "not_found" };
+            const rec = await c.getRecord(Number(id));
             if (!rec || Number(rec.attributes.form_id) !== formId) return { key, status: "not_found" };
             return { key, status: "found", record: await c.describe(fields, rec, body.fileFieldId) };
           }
-          const found = await c.findByField(formId, body.matchBy.fieldId, key);
+          const criteria = matchBy.keys.map((k, i) => ({ key: k.key, kind: k.kind, value: values[i] ?? "" }));
+          const found = await c.findByFields(formId, criteria);
           if (found.length === 0) return { key, status: "not_found" };
           // The list endpoint leaves out attachment fields, so re-read each match on its own
           // to learn whether it already has a file.

@@ -53,7 +53,10 @@ export type MatchResult =
   | { key: string; status: "multiple"; records: RecordMatch[] }
   | { key: string; status: "error"; message: string };
 
-export type MatchBy = { kind: "record_id" } | { kind: "field"; fieldId: number };
+/** How records are identified: by Apricot record ID, or by one or more field values (a composite key). */
+export type MatchBy =
+  | { kind: "record_id" }
+  | { kind: "fields"; keys: { key: string; kind: "text" | "date" }[] };
 
 export type UploadOutcome =
   | { status: "verified"; file: AttachedFile }
