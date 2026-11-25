@@ -1,31 +1,21 @@
 // Local API used by the web page. Only reachable from this computer.
 
 import { APP_NAME, PORT, VERSION } from "./config";
-import { ApricotClient, ApricotError, attachedFile, fetchToken } from "./apricot";
-import { addConnection, getConnection, getSecret, listConnections, removeConnection } from "./store";
-import type { Environment, MatchBy, MatchResult, UploadOutcome } from "../shared/types";
+import { ApricotClient, ApricotError, fetchToken } from "./apricot";
+import { addConnection, listConnections, removeConnection } from "./store";
+import { clientFor, forgetClient, HttpError, pool } from "./clients";
+import { browse, places, statPaths } from "./files/computer";
+import { FileError, scanLocation, stageFile } from "./files";
+import { addServer, browseServer, listServers, normalizeSettings, removeServer, testServer, type ServerCredentials } from "./files/servers";
+import { createJob, deleteJob, getJob, listJobs } from "./jobs";
+import type { Environment, FileLocation, FileRef, JobSpec, MatchBy, MatchResult } from "../shared/types";
 import { joinKey } from "../shared/identifiers";
 
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
 const ALLOWED_ORIGINS = new Set([...ALLOWED_HOSTS].map((h) => `http://${h}`));
 
-class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 
-/**
- * Wraps every API handler with:
- *  - Host check (blocks DNS-rebinding tricks from other websites)
- *  - Custom header + Origin check (blocks other websites from calling this API)
- *  - Friendly JSON errors
- */
 type Req = Request & { params: Record<string, string | undefined> };
 
 function param(req: Req, name: string): string {
@@ -34,6 +24,12 @@ function param(req: Req, name: string): string {
   return v;
 }
 
+/**
+ * Wraps every API handler with:
+ *  - Host check (blocks DNS-rebinding tricks from other websites)
+ *  - Custom header + Origin check (blocks other websites from calling this API)
+ *  - Friendly JSON errors
+ */
 function api(handler: (req: Req) => Promise<Response> | Response) {
   return async (req: Req) => {
     const host = req.headers.get("host") ?? "";
@@ -45,6 +41,7 @@ function api(handler: (req: Req) => Promise<Response> | Response) {
       return await handler(req);
     } catch (err) {
       if (err instanceof HttpError) return json({ error: err.message }, err.status);
+      if (err instanceof FileError) return json({ error: err.message }, 400);
       if (err instanceof ApricotError) return json({ error: err.message, status: err.status }, 502);
       console.error(err);
       return json({ error: "Something went wrong inside the toolkit. Try again." }, 500);
@@ -52,51 +49,55 @@ function api(handler: (req: Req) => Promise<Response> | Response) {
   };
 }
 
-const clients = new Map<string, ApricotClient>();
+// ── Folder scans run in the background, so huge network folders don't time out ──
 
-async function clientFor(connectionId: string): Promise<ApricotClient> {
-  const cached = clients.get(connectionId);
-  if (cached) return cached;
-  const conn = getConnection(connectionId);
-  if (!conn) throw new HttpError(404, "That connection no longer exists. Add it again on the Connections page.");
-  const secret = await getSecret(connectionId);
-  if (!secret) throw new HttpError(400, "The saved secret for this connection is missing. Remove it and add it again.");
-  const client = new ApricotClient(connectionId, conn.clientId, secret);
-  clients.set(connectionId, client);
-  return client;
+interface Scan {
+  count: number;
+  done: boolean;
+  error?: string;
+  result?: { files: FileRef[]; truncated: boolean };
+  at: number;
+}
+const scans = new Map<string, Scan>();
+setInterval(() => {
+  for (const [id, s] of scans) if (Date.now() - s.at > 30 * 60_000) scans.delete(id);
+}, 60_000).unref?.();
+
+function validLocation(loc: FileLocation | undefined): FileLocation {
+  if (!loc || typeof loc !== "object") throw new HttpError(400, "Choose where the files are.");
+  switch (loc.kind) {
+    case "computer":
+      return { kind: "computer", root: String(loc.root ?? "") };
+    case "zip":
+      return { kind: "zip", file: String(loc.file) };
+    case "dropped":
+      return { kind: "dropped", stageId: String(loc.stageId) };
+    case "server":
+      return { kind: "server", serverId: String(loc.serverId), root: String(loc.root ?? "") };
+    case "web":
+      return { kind: "web" };
+    default:
+      throw new HttpError(400, "Unknown file location.");
+  }
 }
 
-/** Run async work over items with a fixed number running at once. */
-async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const out = new Array<R>(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      while (next < items.length) {
-        const i = next++;
-        out[i] = await fn(items[i]!);
-      }
-    }),
-  );
-  return out;
+function runOr404(req: Req) {
+  const job = getJob(param(req, "id"));
+  if (!job) throw new HttpError(404, "That run no longer exists.");
+  return job;
 }
-
-const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 export const routes = {
   "/api/app": {
-    GET: api(() => json({ name: APP_NAME, version: VERSION })),
+    GET: api(() => json({ name: APP_NAME, version: VERSION, platform: process.platform })),
   },
+
+  // ── Apricot connections ──
 
   "/api/connections": {
     GET: api(() => json(listConnections())),
     POST: api(async (req) => {
-      const body = (await req.json()) as {
-        name?: string;
-        environment?: Environment;
-        clientId?: string;
-        clientSecret?: string;
-      };
+      const body = (await req.json()) as { name?: string; environment?: Environment; clientId?: string; clientSecret?: string };
       const clientId = body.clientId?.trim();
       const clientSecret = body.clientSecret?.trim();
       const environment: Environment = body.environment === "production" ? "production" : "sandbox";
@@ -115,7 +116,7 @@ export const routes = {
 
   "/api/connections/:id": {
     DELETE: api(async (req) => {
-      clients.delete(param(req, "id"));
+      forgetClient(param(req, "id"));
       await removeConnection(param(req, "id"));
       return json({ ok: true });
     }),
@@ -141,19 +142,20 @@ export const routes = {
   "/api/c/:cid/match": {
     POST: api(async (req) => {
       const c = await clientFor(param(req, "cid"));
-      const body = (await req.json()) as { formId: number; fileFieldId: number; matchBy: MatchBy; keys: string[][] };
+      const body = (await req.json()) as { formId: number; fileFieldIds: number[]; matchBy: MatchBy; keys: string[][] };
       const formId = Number(body.formId);
+      const fileFieldIds = (body.fileFieldIds ?? []).map(Number).filter(Boolean);
       const fields = await c.fields(formId);
       const seen = new Set<string>();
       const tuples = (body.keys ?? [])
         .map((t) => t.map((v) => String(v).trim()))
         .filter((t) => t.length > 0 && t.every(Boolean) && !seen.has(joinKey(t)) && seen.add(joinKey(t)));
-      if (tuples.length > 20_000) throw new HttpError(400, "That's a lot of files! Please do 20,000 or fewer at a time.");
+      if (tuples.length > 500) throw new HttpError(400, "Send at most 500 lookups at a time.");
       const matchBy = body.matchBy;
       if (matchBy.kind === "fields" && (matchBy.keys.length === 0 || matchBy.keys.some((k) => !/^field_\d+(_first|_last)?$/.test(k.key))))
         throw new HttpError(400, "Choose which fields identify the records.");
 
-      const results = await pool(tuples, 6, async (values): Promise<MatchResult> => {
+      const results = await pool(tuples, 8, async (values): Promise<MatchResult> => {
         const key = joinKey(values);
         try {
           if (matchBy.kind === "record_id") {
@@ -161,7 +163,7 @@ export const routes = {
             if (!/^\d+$/.test(id)) return { key, status: "not_found" };
             const rec = await c.getRecord(Number(id));
             if (!rec || Number(rec.attributes.form_id) !== formId) return { key, status: "not_found" };
-            return { key, status: "found", record: await c.describe(fields, rec, body.fileFieldId) };
+            return { key, status: "found", record: await c.describe(fields, rec, fileFieldIds) };
           }
           const criteria = matchBy.keys.map((k, i) => ({ key: k.key, kind: k.kind, value: values[i] ?? "" }));
           const found = await c.findByFields(formId, criteria);
@@ -169,7 +171,7 @@ export const routes = {
           // The list endpoint leaves out attachment fields, so re-read each match on its own
           // to learn whether it already has a file.
           const recs = await Promise.all(found.slice(0, 10).map(async (r) => (await c.getRecord(r.id)) ?? r));
-          const matches = await Promise.all(recs.map((r) => c.describe(fields, r, body.fileFieldId)));
+          const matches = await Promise.all(recs.map((r) => c.describe(fields, r, fileFieldIds)));
           if (matches.length === 1) return { key, status: "found", record: matches[0]! };
           return { key, status: "multiple", records: matches };
         } catch (err) {
@@ -186,47 +188,156 @@ export const routes = {
       const c = await clientFor(param(req, "cid"));
       const url = new URL(req.url);
       const formId = Number(url.searchParams.get("formId"));
-      const fileFieldId = Number(url.searchParams.get("fileFieldId"));
+      const fileFieldIds = (url.searchParams.get("fileFieldIds") ?? "").split(",").map(Number).filter(Boolean);
       const rec = await c.getRecord(Number(param(req, "rid")));
       if (!rec) throw new HttpError(404, "No record with that ID, or this user can't see it.");
       if (Number(rec.attributes.form_id) !== formId) throw new HttpError(400, "That record belongs to a different form.");
-      return json(await c.describe(await c.fields(formId), rec, fileFieldId));
+      return json(await c.describe(await c.fields(formId), rec, fileFieldIds));
     }),
   },
 
-  /** Upload one file, then read the record back to prove the file is really there. */
-  "/api/c/:cid/upload": {
+  // ── Files: this computer ──
+
+  "/api/files/places": {
+    GET: api(async () => json(await places())),
+  },
+
+  "/api/files/browse": {
     POST: api(async (req) => {
-      const c = await clientFor(param(req, "cid"));
+      const body = (await req.json()) as { serverId?: string; dir: string };
+      return json(body.serverId ? await browseServer(body.serverId, body.dir ?? "") : await browse(body.dir ?? ""));
+    }),
+  },
+
+  /** Start listing every file in a location. Poll GET /api/files/scan/:id for progress. */
+  "/api/files/scan": {
+    POST: api(async (req) => {
+      const { location } = (await req.json()) as { location: FileLocation };
+      const loc = validLocation(location);
+      const id = crypto.randomUUID();
+      const s: Scan = { count: 0, done: false, at: Date.now() };
+      scans.set(id, s);
+      scanLocation(loc, (n) => (s.count = n))
+        .then((r) => {
+          s.result = r;
+          s.count = r.files.length;
+        })
+        .catch((err) => (s.error = err instanceof FileError ? err.message : `Couldn't list the files (${(err as Error).message}).`))
+        .finally(() => {
+          s.done = true;
+          s.at = Date.now();
+        });
+      return json({ id });
+    }),
+  },
+
+  "/api/files/scan/:id": {
+    GET: api((req) => {
+      const s = scans.get(param(req, "id"));
+      if (!s) throw new HttpError(404, "That file listing expired. Choose the folder again.");
+      if (s.done) scans.delete(param(req, "id"));
+      return json({ done: s.done, count: s.count, error: s.error, ...(s.done && s.result ? s.result : {}) });
+    }),
+  },
+
+  /** Which of these full paths exist on this computer, and their sizes. */
+  "/api/files/stat": {
+    POST: api(async (req) => {
+      const { paths } = (await req.json()) as { paths: string[] };
+      if (!Array.isArray(paths) || paths.length > 5000) throw new HttpError(400, "Send at most 5,000 paths at a time.");
+      return json(await statPaths(paths.map(String)));
+    }),
+  },
+
+  /** Copy one dragged-in file into the toolkit's folder, so a run doesn't depend on the page. */
+  "/api/files/stage/:stageId": {
+    POST: api(async (req) => {
       const form = await req.formData();
       const file = form.get("file");
-      const recordId = Number(form.get("recordId"));
-      const fieldId = Number(form.get("fieldId"));
-      if (!(file instanceof Blob) || !recordId || !fieldId) throw new HttpError(400, "Missing file, record or field.");
-      const filename = (file as File).name || String(form.get("filename") || "file");
+      const path = String(form.get("path") ?? "");
+      if (!(file instanceof Blob)) throw new HttpError(400, "Missing file.");
+      await stageFile(param(req, "stageId"), path, file);
+      return json({ ok: true });
+    }),
+  },
 
-      let outcome: UploadOutcome;
-      try {
-        await c.uploadAttachment(recordId, fieldId, file, filename);
-        const rec = await c.getRecord(recordId);
-        const after = attachedFile(rec?.attributes, fieldId);
-        if (!after) {
-          outcome = { status: "not_verified", message: "Apricot said the upload worked, but the file isn't showing on the record." };
-        } else if (simplify(after.filename) === simplify(filename) || (after.size != null && after.size === file.size)) {
-          outcome = { status: "verified", file: after };
-        } else {
-          outcome = {
-            status: "not_verified",
-            message: `Apricot said the upload worked, but the record shows "${after.filename}" instead.`,
-          };
-        }
-      } catch (err) {
-        if (err instanceof ApricotError) {
-          const rejectedType = /file type/i.test(err.detail);
-          outcome = { status: "failed", message: err.message, rejectedType };
-        } else throw err;
-      }
-      return json(outcome);
+  // ── Files: SFTP / FTP servers ──
+
+  "/api/servers": {
+    GET: api(() => json(listServers())),
+    POST: api(async (req) => {
+      const body = (await req.json()) as { name?: string; settings: Record<string, unknown>; credentials: ServerCredentials; hostKey?: string | null };
+      const settings = normalizeSettings(body.settings ?? {});
+      const name = body.name?.trim() || settings.host;
+      return json(await addServer(name, settings, body.credentials ?? {}, body.hostKey ?? null), 201);
+    }),
+  },
+
+  "/api/servers/test": {
+    POST: api(async (req) => {
+      const body = (await req.json()) as { settings: Record<string, unknown>; credentials: ServerCredentials };
+      return json(await testServer(normalizeSettings(body.settings ?? {}), body.credentials ?? {}));
+    }),
+  },
+
+  "/api/servers/:id": {
+    DELETE: api(async (req) => {
+      await removeServer(param(req, "id"));
+      return json({ ok: true });
+    }),
+  },
+
+  // ── Runs ──
+
+  "/api/runs": {
+    GET: api(() => json(listJobs())),
+    POST: api(async (req) => {
+      const spec = (await req.json()) as JobSpec;
+      if (!Array.isArray(spec.items) || spec.items.length > 100_000) throw new HttpError(400, "A run can have at most 100,000 files.");
+      return json(createJob({ ...spec, location: validLocation(spec.location) }), 201);
+    }),
+  },
+
+  "/api/runs/:id": {
+    GET: api((req) => json(runOr404(req).summary())),
+    DELETE: api((req) => {
+      deleteJob(param(req, "id"));
+      return json({ ok: true });
+    }),
+  },
+
+  "/api/runs/:id/items": {
+    GET: api((req) => {
+      const url = new URL(req.url);
+      const filter = url.searchParams.get("filter") ?? "all";
+      const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
+      const limit = Math.min(100_000, Math.max(1, Number(url.searchParams.get("limit")) || 100));
+      return json(runOr404(req).items(filter, offset, limit));
+    }),
+  },
+
+  "/api/runs/:id/start": {
+    POST: api(async (req) => {
+      const job = runOr404(req);
+      const body = (await req.json().catch(() => ({}))) as { limit?: number };
+      await job.start(body.limit && body.limit > 0 ? Number(body.limit) : undefined);
+      return json(job.summary());
+    }),
+  },
+
+  "/api/runs/:id/pause": {
+    POST: api((req) => {
+      const job = runOr404(req);
+      job.pause("user");
+      return json(job.summary());
+    }),
+  },
+
+  "/api/runs/:id/retry": {
+    POST: api(async (req) => {
+      const job = runOr404(req);
+      await job.retryProblems();
+      return json(job.summary());
     }),
   },
 };

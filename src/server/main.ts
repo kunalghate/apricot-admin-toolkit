@@ -3,6 +3,7 @@
 import index from "../web/index.html";
 import { APP_NAME, PORT, VERSION, dataDir } from "./config";
 import { routes } from "./routes";
+import { loadJobs } from "./jobs";
 
 const URL_TO_OPEN = `http://localhost:${PORT}`;
 const noOpen = process.argv.includes("--no-open");
@@ -40,6 +41,31 @@ async function alreadyRunning(): Promise<boolean> {
   }
 }
 
+/**
+ * Windows: clicking inside the console window starts "QuickEdit" text selection, which
+ * freezes the program until a key is pressed. That would silently stall a long run.
+ */
+function disableQuickEdit() {
+  if (process.platform !== "win32") return;
+  try {
+    const { dlopen, FFIType, ptr } = require("bun:ffi") as typeof import("bun:ffi");
+    const k = dlopen("kernel32.dll", {
+      GetStdHandle: { args: [FFIType.i32], returns: FFIType.ptr },
+      GetConsoleMode: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+      SetConsoleMode: { args: [FFIType.ptr, FFIType.u32], returns: FFIType.i32 },
+    });
+    const handle = k.symbols.GetStdHandle(-10); // STD_INPUT_HANDLE
+    const mode = new Uint32Array(1);
+    if (handle && k.symbols.GetConsoleMode(handle, ptr(mode))) {
+      const ENABLE_QUICK_EDIT_MODE = 0x40;
+      const ENABLE_EXTENDED_FLAGS = 0x80;
+      k.symbols.SetConsoleMode(handle, ((mode[0]! & ~ENABLE_QUICK_EDIT_MODE) | ENABLE_EXTENDED_FLAGS) >>> 0);
+    }
+  } catch {
+    // Not critical.
+  }
+}
+
 function start(hostname: string) {
   return Bun.serve({
     hostname,
@@ -66,6 +92,9 @@ try {
   waitAndExit(1);
 }
 
+disableQuickEdit();
+loadJobs();
+
 // Also listen on IPv6 loopback, since some Windows setups resolve "localhost" to ::1 first.
 try {
   start("::1");
@@ -82,8 +111,8 @@ console.log(`
    The toolkit is running. It should open in your browser.
    If it doesn't, go to:   ${URL_TO_OPEN}
 
-   Keep this window open while you work.
-   Close it when you're done.
+   Keep this window open while you work, and while uploads
+   are running (you can minimize it). Close it when you're done.
   ${line}
 `);
 if (isDev) console.log(`   (dev mode, data folder: ${dataDir()})\n`);

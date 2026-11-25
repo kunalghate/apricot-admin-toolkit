@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
-import { Home, Paperclip, PlugZap, TriangleAlert } from "lucide-react";
+import { History, Home, Paperclip, PlugZap, TriangleAlert } from "lucide-react";
 import { api } from "./api";
 import { cx, EnvBadge, Spinner } from "./components/ui";
 import { ConnectionsPage, ConnectForm } from "./pages/Connections";
 import { BonterraLogo } from "./components/BonterraLogo";
 import { HomePage } from "./pages/Home";
 import { AttachFilesPage } from "./pages/attach/AttachFiles";
-import type { Connection } from "../shared/types";
+import { RunPage, RunsPage } from "./pages/Runs";
+import type { Connection, JobSummary } from "../shared/types";
 
-export type Route = "home" | "attach" | "connections";
+export type Page = "home" | "attach" | "connections" | "runs";
+export type Route = { page: Page } | { page: "run"; id: string };
 
 const ACTIVE_KEY = "aat.activeConnection";
 
 function readRoute(): Route {
   const h = location.hash.replace(/^#\/?/, "");
-  return h === "attach" || h === "connections" ? h : "home";
+  const run = h.match(/^runs\/([\w-]+)$/);
+  if (run) return { page: "run", id: run[1]! };
+  return { page: h === "attach" || h === "connections" || h === "runs" ? h : "home" };
 }
 
 const safeGet = (k: string) => {
@@ -36,6 +40,19 @@ export function App() {
   const [activeId, setActiveId] = useState<string | null>(safeGet(ACTIVE_KEY));
   const [version, setVersion] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [runs, setRuns] = useState<JobSummary[]>([]);
+
+  // Keep an eye on runs for the sidebar indicator and the home page.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      const r = await api.runs().catch(() => null);
+      if (r) setRuns(r);
+      t = setTimeout(load, r?.some((x) => x.state === "running") ? 3000 : 10000);
+    };
+    load();
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const onHash = () => setRoute(readRoute());
@@ -64,7 +81,7 @@ export function App() {
     if (id) safeSet(ACTIVE_KEY, id);
   };
 
-  const go = (r: Route) => {
+  const go = (r: string) => {
     location.hash = `/${r}`;
   };
 
@@ -103,11 +120,14 @@ export function App() {
   }
 
   const active = connections.find((c) => c.id === activeId) ?? connections[0]!;
-  const nav: { id: Route; label: string; icon: typeof Home }[] = [
+  const nav: { id: Page; label: string; icon: typeof Home }[] = [
     { id: "home", label: "Home", icon: Home },
     { id: "attach", label: "Attach files", icon: Paperclip },
+    { id: "runs", label: "Runs", icon: History },
     { id: "connections", label: "Connections", icon: PlugZap },
   ];
+  const running = runs.filter((r) => r.state === "running").length;
+  const navActive = (id: Page) => route.page === id || (id === "runs" && route.page === "run");
 
   return (
     <div className="h-full flex">
@@ -123,12 +143,17 @@ export function App() {
               onClick={() => go(n.id)}
               className={cx(
                 "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer",
-                route === n.id
+                navActive(n.id)
                   ? "bg-brand-100/70 text-brand-900 font-medium shadow-[inset_3px_0_0_var(--color-lime-500)]"
                   : "text-stone-600 hover:bg-stone-100 hover:text-stone-900",
               )}
             >
               <n.icon className="size-4" /> {n.label}
+              {n.id === "runs" && running > 0 && (
+                <span className="ml-auto flex items-center gap-1.5 text-xs text-sky-700">
+                  <span className="size-2 rounded-full bg-sky-500 animate-pulse" /> {running}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -164,9 +189,11 @@ export function App() {
           </div>
         )}
         <div className="max-w-5xl mx-auto px-8 py-10">
-          {route === "home" && <HomePage go={go} connection={active} />}
-          {route === "attach" && <AttachFilesPage key={active.id} connection={active} />}
-          {route === "connections" && (
+          {route.page === "home" && <HomePage go={go} connection={active} runs={runs} />}
+          {route.page === "attach" && <AttachFilesPage key={active.id} connection={active} onStarted={(id) => go(`runs/${id}`)} />}
+          {route.page === "runs" && <RunsPage open={(id) => go(`runs/${id}`)} />}
+          {route.page === "run" && <RunPage key={route.id} id={route.id} onBack={() => go("runs")} onAttachMore={() => go("attach")} />}
+          {route.page === "connections" && (
             <ConnectionsPage connections={connections} activeId={active.id} onChoose={choose} onChanged={refresh} />
           )}
         </div>

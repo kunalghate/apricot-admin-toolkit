@@ -326,14 +326,16 @@ export class ApricotClient {
   }
 
   /** What the user sees for a record: "Jane Doe" or, for Tier 2 records, "Jane Doe · 2022-04-21". */
-  async describe(fields: FieldInfo[], rec: { id: number; attributes: Record<string, any> }, fileFieldId: number): Promise<RecordMatch> {
+  async describe(fields: FieldInfo[], rec: { id: number; attributes: Record<string, any> }, fileFieldIds: number[]): Promise<RecordMatch> {
     let label = this.recordLabel(fields, rec.attributes, rec.id);
     const parentId = Number(rec.attributes.parent_id ?? 0);
     if (parentId > 0) {
       const parent = await this.parentLabel(parentId);
       if (parent) label = label.startsWith("Record ") ? parent : `${parent} · ${label}`;
     }
-    return { id: rec.id, label, existingFile: attachedFile(rec.attributes, fileFieldId) };
+    const files: RecordMatch["files"] = {};
+    for (const id of fileFieldIds) files[id] = attachedFile(rec.attributes, id);
+    return { id: rec.id, label, files };
   }
 
   /**

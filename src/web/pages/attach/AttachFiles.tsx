@@ -4,9 +4,8 @@ import { StepForm } from "./StepForm";
 import { StepFiles } from "./StepFiles";
 import { StepMatch } from "./StepMatch";
 import { StepReview } from "./StepReview";
-import { StepUpload } from "./StepUpload";
-import type { FileItem } from "../../lib/files";
-import type { Row } from "./model";
+import { StepStart } from "./StepStart";
+import type { Row, Source } from "./model";
 import type { Connection, FieldInfo, FormSummary } from "../../../shared/types";
 
 export interface Target {
@@ -17,20 +16,12 @@ export interface Target {
 
 const STEPS = ["Form & field", "Files", "Match", "Review", "Upload"];
 
-export function AttachFilesPage({ connection }: { connection: Connection }) {
+export function AttachFilesPage({ connection, onStarted }: { connection: Connection; onStarted: (runId: string) => void }) {
   const [step, setStep] = useState(0);
   const [target, setTarget] = useState<Target | null>(null);
-  const [files, setFiles] = useState<FileItem[]>([]);
+  const [source, setSource] = useState<Source | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [replaceExisting, setReplaceExisting] = useState(false);
-
-  const reset = () => {
-    setStep(0);
-    setTarget(null);
-    setFiles([]);
-    setRows([]);
-    setReplaceExisting(false);
-  };
 
   return (
     <div className="animate-fade-up">
@@ -42,19 +33,28 @@ export function AttachFilesPage({ connection }: { connection: Connection }) {
           connection={connection}
           initial={target}
           onNext={(t) => {
+            if (t.form.id !== target?.form.id) setSource(null);
             setTarget(t);
             setStep(1);
           }}
         />
       )}
       {step === 1 && target && (
-        <StepFiles files={files} setFiles={setFiles} target={target} onBack={() => setStep(0)} onNext={() => setStep(2)} />
+        <StepFiles
+          target={target}
+          initial={source}
+          onBack={() => setStep(0)}
+          onNext={(s) => {
+            setSource(s);
+            setStep(2);
+          }}
+        />
       )}
-      {step === 2 && target && (
+      {step === 2 && target && source && (
         <StepMatch
           connection={connection}
           target={target}
-          files={files}
+          source={source}
           onBack={() => setStep(1)}
           onMatched={(r) => {
             setRows(r);
@@ -62,10 +62,11 @@ export function AttachFilesPage({ connection }: { connection: Connection }) {
           }}
         />
       )}
-      {step === 3 && target && (
+      {step === 3 && target && source && (
         <StepReview
           connection={connection}
           target={target}
+          source={source}
           rows={rows}
           setRows={setRows}
           replaceExisting={replaceExisting}
@@ -74,15 +75,15 @@ export function AttachFilesPage({ connection }: { connection: Connection }) {
           onNext={() => setStep(4)}
         />
       )}
-      {step === 4 && target && (
-        <StepUpload
+      {step === 4 && target && source && (
+        <StepStart
           connection={connection}
           target={target}
+          source={source}
           rows={rows}
-          setRows={setRows}
           replaceExisting={replaceExisting}
           onBack={() => setStep(3)}
-          onStartOver={reset}
+          onStarted={onStarted}
         />
       )}
     </div>
