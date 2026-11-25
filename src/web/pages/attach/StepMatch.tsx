@@ -149,10 +149,10 @@ export function StepMatch({
               onClick={() => setSource(o.id)}
               className={cx(
                 "rounded-xl p-4 text-left ring-1 transition cursor-pointer",
-                source === o.id ? "ring-2 ring-apricot-400 bg-apricot-50/60" : "ring-stone-200 hover:ring-stone-300",
+                source === o.id ? "ring-2 ring-brand-700 bg-brand-50" : "ring-stone-200 hover:ring-stone-300",
               )}
             >
-              <o.icon className="size-5 text-apricot-600 mb-2" />
+              <o.icon className="size-5 text-brand-700 mb-2" />
               <div className="font-medium text-sm">{o.title}</div>
               <div className="text-xs text-stone-500 mt-0.5">{o.desc}</div>
             </button>
@@ -169,10 +169,10 @@ export function StepMatch({
                 key={r.id}
                 className={cx(
                   "flex gap-3 rounded-xl p-3 ring-1 cursor-pointer transition",
-                  rule === r.id ? "ring-2 ring-apricot-400 bg-apricot-50/60" : "ring-stone-200 hover:ring-stone-300",
+                  rule === r.id ? "ring-2 ring-brand-700 bg-brand-50" : "ring-stone-200 hover:ring-stone-300",
                 )}
               >
-                <input type="radio" className="accent-apricot-500 mt-1" checked={rule === r.id} onChange={() => setRule(r.id)} />
+                <input type="radio" className="accent-brand-800 mt-1" checked={rule === r.id} onChange={() => setRule(r.id)} />
                 <span>
                   <span className="block text-sm font-medium">{r.label}</span>
                   <span className="block text-xs text-stone-500 font-mono mt-0.5">{r.example}</span>

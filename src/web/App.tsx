@@ -3,6 +3,7 @@ import { Home, Paperclip, PlugZap, TriangleAlert } from "lucide-react";
 import { api } from "./api";
 import { cx, EnvBadge, Spinner } from "./components/ui";
 import { ConnectionsPage, ConnectForm } from "./pages/Connections";
+import { BonterraLogo } from "./components/BonterraLogo";
 import { HomePage } from "./pages/Home";
 import { AttachFilesPage } from "./pages/attach/AttachFiles";
 import type { Connection } from "../shared/types";
@@ -83,11 +84,11 @@ export function App() {
   // First run: nothing to do until we're connected.
   if (connections.length === 0) {
     return (
-      <div className="min-h-full grid place-items-center p-6 bg-gradient-to-b from-apricot-50 to-[#fbfaf8]">
+      <div className="min-h-full grid place-items-center p-6 bg-gradient-to-b from-brand-50 to-stone-50">
         <div className="w-full max-w-lg animate-fade-up">
           <div className="text-center mb-8">
-            <div className="text-5xl mb-3">🍑</div>
-            <h1 className="text-3xl font-semibold tracking-tight">Welcome to Apricot Admin Toolkit</h1>
+            <BonterraLogo className="h-9 mx-auto mb-8 text-brand-900" />
+            <h1 className="text-3xl font-semibold tracking-tight text-brand-900">Welcome to Apricot Admin Toolkit</h1>
             <p className="mt-2 text-stone-500">Connect to your Apricot organization to get started.</p>
           </div>
           <ConnectForm
@@ -111,12 +112,9 @@ export function App() {
   return (
     <div className="h-full flex">
       <aside className="w-64 shrink-0 border-r border-stone-200/80 bg-white/60 flex flex-col">
-        <div className="px-5 py-5 flex items-center gap-2.5">
-          <span className="text-2xl">🍑</span>
-          <div className="leading-tight">
-            <div className="font-semibold text-stone-900">Apricot</div>
-            <div className="text-xs text-stone-500">Admin Toolkit</div>
-          </div>
+        <div className="px-5 pt-6 pb-5">
+          <BonterraLogo className="h-6 text-brand-900" />
+          <div className="mt-3 text-[13px] font-medium text-stone-600 tracking-tight">Apricot Admin Toolkit</div>
         </div>
         <nav className="px-3 space-y-0.5">
           {nav.map((n) => (
@@ -125,7 +123,9 @@ export function App() {
               onClick={() => go(n.id)}
               className={cx(
                 "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer",
-                route === n.id ? "bg-apricot-50 text-apricot-800 font-medium" : "text-stone-600 hover:bg-stone-100 hover:text-stone-900",
+                route === n.id
+                  ? "bg-brand-100/70 text-brand-900 font-medium shadow-[inset_3px_0_0_var(--color-lime-500)]"
+                  : "text-stone-600 hover:bg-stone-100 hover:text-stone-900",
               )}
             >
               <n.icon className="size-4" /> {n.label}

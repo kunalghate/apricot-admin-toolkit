@@ -119,7 +119,7 @@ export function StepUpload({
     <div className="space-y-6">
       <Card className="p-6">
         <div className="flex items-start gap-5">
-          <div className={cx("size-12 rounded-2xl grid place-items-center shrink-0", phase === "done" && remaining === 0 && failed + notVerified === 0 ? "bg-emerald-50 text-emerald-600" : "bg-apricot-50 text-apricot-600")}>
+          <div className={cx("size-12 rounded-2xl grid place-items-center shrink-0", phase === "done" && remaining === 0 && failed + notVerified === 0 ? "bg-lime-50 text-lime-700" : "bg-brand-50 text-brand-600")}>
             {phase === "done" && remaining === 0 ? <CheckCircle2 className="size-6" /> : <Upload className="size-6" />}
           </div>
           <div className="flex-1 min-w-0">
@@ -138,7 +138,7 @@ export function StepUpload({
               <div className="mt-4 space-y-2">
                 <Progress value={pct} tone={phase === "done" && remaining === 0 && failed + notVerified === 0 ? "green" : "apricot"} />
                 <div className="flex gap-4 text-sm">
-                  <span className="text-emerald-700">✓ {verified} attached</span>
+                  <span className="text-lime-800">✓ {verified} attached</span>
                   {notVerified > 0 && <span className="text-amber-700">? {notVerified} not confirmed</span>}
                   {failed > 0 && <span className="text-red-700">✕ {failed} failed</span>}
                   {skipped > 0 && <span className="text-stone-500">{skipped} skipped</span>}

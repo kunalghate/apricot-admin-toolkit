@@ -9,8 +9,8 @@ export function HomePage({ go, connection }: { go: (r: Route) => void; connectio
       <PageHeader title="What would you like to do?" subtitle={`Working in ${connection.name}.`} />
       <div className="grid sm:grid-cols-2 gap-4">
         <button onClick={() => go("attach")} className="text-left group cursor-pointer">
-          <Card className="p-6 h-full transition group-hover:ring-apricot-300 group-hover:shadow-md">
-            <div className="size-11 rounded-xl bg-apricot-100 text-apricot-700 grid place-items-center mb-4">
+          <Card className="p-6 h-full transition group-hover:ring-brand-300 group-hover:shadow-md">
+            <div className="size-11 rounded-xl bg-brand-100 text-brand-700 grid place-items-center mb-4">
               <Paperclip className="size-5" />
             </div>
             <div className="font-semibold text-stone-900 flex items-center gap-2">

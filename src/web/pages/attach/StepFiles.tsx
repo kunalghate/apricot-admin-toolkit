@@ -59,11 +59,11 @@ export function StepFiles({
           onDrop={onDrop}
           className={cx(
             "rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors",
-            dragging ? "border-apricot-400 bg-apricot-50" : "border-stone-200 bg-stone-50/50",
+            dragging ? "border-brand-400 bg-brand-50" : "border-stone-200 bg-stone-50/50",
           )}
         >
           <div className="size-14 mx-auto rounded-2xl bg-white ring-1 ring-stone-200 grid place-items-center mb-4 shadow-sm">
-            <Upload className={cx("size-6", dragging ? "text-apricot-500" : "text-stone-400")} />
+            <Upload className={cx("size-6", dragging ? "text-brand-500" : "text-stone-400")} />
           </div>
           <div className="text-lg font-medium text-stone-900">{reading ? "Reading files…" : "Drag a folder or files here"}</div>
           <p className="text-sm text-stone-500 mt-1 mb-5">

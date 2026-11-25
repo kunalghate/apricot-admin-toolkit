@@ -1,4 +1,4 @@
-# 🍑 Apricot Admin Toolkit
+# Apricot Admin Toolkit
 
 Do admin work in Apricot that the Apricot screens can't do, or can only do one record at a time.
 The toolkit runs on your own computer and opens in your web browser.

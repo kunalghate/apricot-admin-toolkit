@@ -61,7 +61,7 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
               onClick={() => pick(f)}
               className={cx(
                 "w-full text-left rounded-lg px-3 py-2.5 text-sm flex items-center gap-2.5 cursor-pointer transition-colors",
-                form?.id === f.id ? "bg-apricot-50 text-apricot-900 ring-1 ring-apricot-200" : "hover:bg-stone-50",
+                form?.id === f.id ? "bg-brand-50 text-brand-900 ring-1 ring-brand-200" : "hover:bg-stone-50",
               )}
             >
               <FileText className="size-4 shrink-0 text-stone-400" />
@@ -105,10 +105,10 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
                     key={f.id}
                     className={cx(
                       "flex items-center gap-3 rounded-xl p-4 ring-1 cursor-pointer transition",
-                      fileFieldId === f.id ? "ring-2 ring-apricot-400 bg-apricot-50/60" : "ring-stone-200 hover:ring-stone-300",
+                      fileFieldId === f.id ? "ring-2 ring-brand-700 bg-brand-50" : "ring-stone-200 hover:ring-stone-300",
                     )}
                   >
-                    <input type="radio" className="accent-apricot-500 size-4" checked={fileFieldId === f.id} onChange={() => setFileFieldId(f.id)} />
+                    <input type="radio" className="accent-brand-800 size-4" checked={fileFieldId === f.id} onChange={() => setFileFieldId(f.id)} />
                     <Paperclip className="size-4 text-stone-400" />
                     <span className="flex-1 font-medium text-sm">{f.label}</span>
                     {f.required && <Badge tone="amber">Required</Badge>}

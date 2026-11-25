@@ -76,7 +76,7 @@ try {
 const line = "─".repeat(58);
 console.log(`
   ${line}
-   🍑  ${APP_NAME}  v${VERSION}
+   ${APP_NAME}  ·  version ${VERSION}
   ${line}
 
    The toolkit is running. It should open in your browser.

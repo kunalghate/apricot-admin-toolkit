@@ -39,7 +39,7 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
                 onClick={() => setEnvironment(env)}
                 className={cx(
                   "rounded-xl px-4 py-3 text-left ring-1 transition cursor-pointer",
-                  environment === env ? "ring-2 ring-apricot-400 bg-apricot-50" : "ring-stone-200 hover:ring-stone-300",
+                  environment === env ? "ring-2 ring-brand-700 bg-brand-50" : "ring-stone-200 hover:ring-stone-300",
                 )}
               >
                 <div className="font-medium text-sm">{env === "sandbox" ? "Sandbox" : "Production"}</div>
@@ -145,7 +145,7 @@ export function ConnectionsPage({
 
       <div className="space-y-3">
         {connections.map((c) => (
-          <Card key={c.id} className={cx("p-5 flex items-center gap-4", c.id === activeId && "ring-2 ring-apricot-300")}>
+          <Card key={c.id} className={cx("p-5 flex items-center gap-4", c.id === activeId && "ring-2 ring-brand-300")}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-stone-900">{c.name}</span>
@@ -157,7 +157,7 @@ export function ConnectionsPage({
                 {c.userLabel && ` · Signed in as ${c.userLabel}`} · Client ID ending …{c.clientIdHint}
               </div>
               {status[c.id] && (
-                <div className={cx("text-sm mt-2 flex items-center gap-1.5", status[c.id]!.ok ? "text-emerald-700" : "text-red-700")}>
+                <div className={cx("text-sm mt-2 flex items-center gap-1.5", status[c.id]!.ok ? "text-lime-800" : "text-red-700")}>
                   {status[c.id]!.ok && <CheckCircle2 className="size-4" />} {status[c.id]!.message}
                 </div>
               )}
