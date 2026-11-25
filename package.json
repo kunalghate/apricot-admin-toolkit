@@ -1,0 +1,28 @@
+{
+  "name": "apricot-admin-toolkit",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot src/server/main.ts --no-open",
+    "start": "bun src/server/main.ts",
+    "build": "bun scripts/build.ts",
+    "typecheck": "bun check"
+  },
+  "dependencies": {
+    "lucide-react": "^1.79.0",
+    "papaparse": "^5.7.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "read-excel-file": "^9.3.20",
+    "write-excel-file": "^4.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/papaparse": "^5.5.0",
+    "@types/react": "^19.3.1",
+    "@types/react-dom": "^19.3.0",
+    "bun-plugin-tailwind": "^0.1.2",
+    "tailwindcss": "^4.3.5"
+  }
+}
