@@ -23,7 +23,7 @@ Start-Sleep -Milliseconds 500
 New-Item -ItemType Directory -Force -Path $Dir | Out-Null
 $Zip = Join-Path $env:TEMP 'apricot-admin-toolkit.zip'
 try {
-  Write-Host '  Downloading (about 40 MB)...'
+  Write-Host '  Downloading (about 55 MB)...'
   Invoke-WebRequest -Uri $Url -OutFile $Zip -UseBasicParsing
   Expand-Archive -Path $Zip -DestinationPath $Dir -Force
 } catch {

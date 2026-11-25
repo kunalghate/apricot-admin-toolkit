@@ -26,7 +26,7 @@ pkill -f "$BIN" 2>/dev/null || true
 
 mkdir -p "$DIR" "$HOME/Applications"
 TMP="$(mktemp -d)"
-echo "  Downloading (about 35 MB)..."
+echo "  Downloading (about 40 MB)..."
 if ! curl -fsSL "$URL" -o "$TMP/app.tar.gz"; then
   echo ""
   echo "  The download didn't work. Check your internet connection and try again."
