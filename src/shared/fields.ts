@@ -5,6 +5,7 @@ export const FIELD_TYPE = {
   NAME: 5, // stored as field_<id>_first / field_<id>_last
   ATTACHMENT: 29, // "Attach Doc": one file per record
   ATTACHMENT_MULTIPLE: 102, // "Attach Docs – Multiple": API can download but not upload
+  IMAGE: 72, // "Image": same upload endpoint as Attach Doc (verified live 2026-11-25)
   LINK: 39,
 } as const;
 
@@ -13,9 +14,18 @@ export const FIELD_TYPE = {
 // Bonterra Workato connector's list of simple types.
 export const SIMPLE_VALUE_TYPES = new Set([1, 2, 7, 11, 16, 17, 19, 30]);
 
+/** Fields that hold one uploaded file: Attach Doc and Image. */
 export function isAttachmentField(f: FieldInfo) {
-  return f.typeId === FIELD_TYPE.ATTACHMENT;
+  return f.typeId === FIELD_TYPE.ATTACHMENT || f.typeId === FIELD_TYPE.IMAGE;
 }
+
+export function isImageField(f: FieldInfo) {
+  return f.typeId === FIELD_TYPE.IMAGE;
+}
+
+// The API doesn't check what goes into an Image field (it accepted a PDF in testing),
+// so the toolkit only sends real image types there.
+export const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "tif", "tiff"]);
 
 export function isMultiAttachmentField(f: FieldInfo) {
   return f.typeId === FIELD_TYPE.ATTACHMENT_MULTIPLE;
@@ -44,6 +54,8 @@ export function fileExtension(name: string) {
   const i = name.lastIndexOf(".");
   return i > 0 ? name.slice(i + 1).toLowerCase() : "";
 }
+
+export const isImageFile = (name: string) => IMAGE_EXTENSIONS.has(fileExtension(name));
 
 export type FileTypeRisk = "ok" | "unusual" | "blocked";
 

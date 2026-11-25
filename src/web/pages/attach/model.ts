@@ -1,5 +1,5 @@
 import type { FileItem } from "../../lib/files";
-import { fileExtension, fileTypeRisk, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "../../../shared/fields";
+import { fileExtension, fileTypeRisk, isImageFile, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "../../../shared/fields";
 import type { RecordMatch, UploadOutcome } from "../../../shared/types";
 
 export type RowResult =
@@ -30,9 +30,10 @@ export type RowState =
   | "error"
   | "blocked_type"
   | "too_large"
+  | "not_image"
   | "excluded";
 
-export const ATTENTION_STATES: RowState[] = ["no_key", "not_found", "multiple", "error", "duplicate", "blocked_type", "too_large"];
+export const ATTENTION_STATES: RowState[] = ["no_key", "not_found", "multiple", "error", "duplicate", "blocked_type", "too_large", "not_image"];
 
 /** Rows (after the first) that point at a record another file already targets. */
 export function duplicateIds(rows: Row[]): Set<string> {
@@ -46,9 +47,10 @@ export function duplicateIds(rows: Row[]): Set<string> {
   return dupes;
 }
 
-export function rowState(r: Row, replaceExisting: boolean, dupes: Set<string>): RowState {
+export function rowState(r: Row, replaceExisting: boolean, dupes: Set<string>, imageOnly = false): RowState {
   if (r.excluded) return "excluded";
   if (fileTypeRisk(r.item.file.name) === "blocked") return "blocked_type";
+  if (imageOnly && !isImageFile(r.item.file.name)) return "not_image";
   if (r.item.file.size > MAX_UPLOAD_BYTES) return "too_large";
   if (!r.record) {
     if (r.lookup === "multiple") return "multiple";
@@ -72,6 +74,7 @@ export const STATE_COPY: Record<RowState, { label: string; tone: "green" | "ambe
   error: { label: "Lookup failed", tone: "red", help: "Something went wrong looking this up." },
   blocked_type: { label: "Unsafe file type", tone: "red", help: "Program files like .exe can't be attached." },
   too_large: { label: "Too large", tone: "red", help: `Over the Apricot API's ${MAX_UPLOAD_LABEL} limit. Compress or split it, or attach it in Apricot directly.` },
+  not_image: { label: "Not an image", tone: "red", help: "This is an Image field, so only pictures (.jpg, .png, .gif…) can go here." },
   excluded: { label: "Removed", tone: "neutral", help: "You removed this file from the batch." },
 };
 

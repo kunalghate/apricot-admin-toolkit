@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, CircleAlert, FileIcon, RefreshCw, Undo2, X } from "lucide-react";
 import { api } from "../../api";
 import { Badge, Button, Callout, Card, cx, Input } from "../../components/ui";
+import { isImageField } from "../../../shared/fields";
 import type { Connection } from "../../../shared/types";
 import type { Target } from "./AttachFiles";
 import { ATTENTION_STATES, duplicateIds, rowState, STATE_COPY, willUpload, type Row, type RowState } from "./model";
@@ -28,7 +29,8 @@ export function StepReview({
   onNext: () => void;
 }) {
   const dupes = useMemo(() => duplicateIds(rows), [rows]);
-  const states = rows.map((r) => rowState(r, replaceExisting, dupes));
+  const imageOnly = isImageField(target.fileField);
+  const states = rows.map((r) => rowState(r, replaceExisting, dupes, imageOnly));
   const count = (pred: (s: RowState) => boolean) => states.filter(pred).length;
 
   const ready = count(willUpload);

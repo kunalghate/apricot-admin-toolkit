@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, CircleAlert, Download, FlaskConical, Pause, Pl
 import { api } from "../../api";
 import { Badge, Button, Callout, Card, cx, plural, Progress } from "../../components/ui";
 import { downloadSheet } from "../../lib/sheets";
+import { isImageField } from "../../../shared/fields";
 import type { Connection } from "../../../shared/types";
 import type { Target } from "./AttachFiles";
 import { duplicateIds, fileExtension, rowState, STATE_COPY, willUpload, type Row } from "./model";
@@ -34,7 +35,8 @@ export function StepUpload({
   const rejectedExts = useRef(new Set<string>());
 
   const dupes = useMemo(() => duplicateIds(rows), [rows]);
-  const planned = rows.filter((r) => willUpload(rowState(r, replaceExisting, dupes)));
+  const imageOnly = isImageField(target.fileField);
+  const planned = rows.filter((r) => willUpload(rowState(r, replaceExisting, dupes, imageOnly)));
   const replacing = planned.filter((r) => r.record?.existingFile).length;
 
   const stat = (s: string) => planned.filter((r) => r.result?.status === s).length;
@@ -97,7 +99,7 @@ export function StepUpload({
       if (res?.status === "not_verified") return ["Not confirmed", res.message];
       if (res?.status === "failed") return ["Failed", res.message];
       if (res?.status === "skipped") return ["Skipped", res.message];
-      const s = rowState(r, replaceExisting, dupes);
+      const s = rowState(r, replaceExisting, dupes, imageOnly);
       return [willUpload(s) ? "Not uploaded yet" : STATE_COPY[s].label, STATE_COPY[s].help];
     };
     downloadSheet(

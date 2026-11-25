@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, FileText, Info, Paperclip, Search } from "lucide-react";
+import { ArrowRight, FileText, ImageIcon, Info, Paperclip, Search } from "lucide-react";
 import { api } from "../../api";
 import { Badge, Button, Callout, Card, cx, Input, Spinner } from "../../components/ui";
-import { isAttachmentField, isMultiAttachmentField } from "../../../shared/fields";
+import { isAttachmentField, isImageField, isMultiAttachmentField } from "../../../shared/fields";
 import type { Connection, FieldInfo, FormSummary } from "../../../shared/types";
 import type { Target } from "./AttachFiles";
 
@@ -74,11 +74,11 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
       </Card>
 
       <Card className="p-6">
-        <div className="text-sm font-medium text-stone-800 mb-4">2. Choose the file field{form && <span className="text-stone-500 font-normal"> on {form.name}</span>}</div>
+        <div className="text-sm font-medium text-stone-800 mb-4">2. Choose the file or image field{form && <span className="text-stone-500 font-normal"> on {form.name}</span>}</div>
         {!form && (
           <div className="text-sm text-stone-500 py-10 text-center">
             <Paperclip className="size-8 mx-auto mb-3 text-stone-300" />
-            Pick a form on the left to see its file fields.
+            Pick a form on the left to see its file and image fields.
           </div>
         )}
         {form && !fields && !fieldsError && <Spinner label={`Looking at "${form.name}"…`} />}
@@ -93,7 +93,7 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
               </Callout>
             )}
             {attachFields.length === 0 ? (
-              <Callout tone="amber" title="This form has no file fields">
+              <Callout tone="amber" title="This form has no file or image fields">
                 {multiFields.length > 0
                   ? "It only has multi-file fields, and the Apricot API doesn't support uploading to those yet."
                   : "Choose a different form, or add a file field to this one in Apricot's form designer."}
@@ -109,8 +109,9 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
                     )}
                   >
                     <input type="radio" className="accent-brand-800 size-4" checked={fileFieldId === f.id} onChange={() => setFileFieldId(f.id)} />
-                    <Paperclip className="size-4 text-stone-400" />
+                    {isImageField(f) ? <ImageIcon className="size-4 text-stone-400" /> : <Paperclip className="size-4 text-stone-400" />}
                     <span className="flex-1 font-medium text-sm">{f.label}</span>
+                    {isImageField(f) && <Badge tone="blue">Pictures only</Badge>}
                     {f.required && <Badge tone="amber">Required</Badge>}
                     {f.hidden && <Badge>Hidden</Badge>}
                   </label>

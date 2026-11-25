@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, FileIcon, FolderOpen, Trash2, Upload, X } from "lucide-react";
 import { Badge, Button, Callout, Card, cx, formatBytes } from "../../components/ui";
 import { fromDataTransfer, fromFileList, type FileItem } from "../../lib/files";
-import { fileExtension, fileTypeRisk, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "../../../shared/fields";
+import { fileExtension, fileTypeRisk, isImageField, isImageFile, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "../../../shared/fields";
 import type { Target } from "./AttachFiles";
 
 
@@ -45,6 +45,8 @@ export function StepFiles({
   const blocked = files.filter((f) => fileTypeRisk(f.file.name) === "blocked");
   const unusual = files.filter((f) => fileTypeRisk(f.file.name) === "unusual");
   const large = files.filter((f) => f.file.size > MAX_UPLOAD_BYTES);
+  const imageOnly = isImageField(target.fileField);
+  const notImages = imageOnly ? files.filter((f) => !isImageFile(f.file.name)) : [];
   const types = [...new Set(files.map((f) => fileExtension(f.file.name) || "no extension"))];
 
   return (
@@ -121,14 +123,19 @@ export function StepFiles({
         </Card>
       )}
 
-      {(blocked.length > 0 || unusual.length > 0 || large.length > 0) && (
+      {(blocked.length > 0 || unusual.length > 0 || large.length > 0 || notImages.length > 0) && (
         <div className="space-y-2">
           {blocked.length > 0 && (
             <Callout tone="red" title={`${blocked.length} program file${blocked.length > 1 ? "s" : ""} will be skipped`}>
               Files like .exe can't be attached to Apricot records.
             </Callout>
           )}
-          {unusual.length > 0 && (
+          {notImages.length > 0 && (
+            <Callout tone="red" title={`${notImages.length} file${notImages.length > 1 ? "s aren't pictures" : " isn't a picture"} and will be skipped`}>
+              "{target.fileField.label}" is an Image field, so only pictures (.jpg, .png, .gif…) can go in it.
+            </Callout>
+          )}
+          {unusual.length > 0 && !imageOnly && (
             <Callout tone="amber" title={`${unusual.length} file${unusual.length > 1 ? "s have" : " has"} a less common type`}>
               Each Apricot organization decides which file types it accepts. These will be tried. If Apricot rejects a type,
               the toolkit will tell you and skip the rest of that type.
