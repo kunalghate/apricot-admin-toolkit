@@ -100,7 +100,7 @@ export function StepStart({
           <div className="flex-1 min-w-0">
             <div className="text-lg font-semibold text-stone-900">Attach {plural(planned.length, "file")} on {target.form.name}</div>
             <div className="text-sm text-stone-500 mt-1">
-              Into {fields.map((f) => `"${f.label}"`).join(" and ")} · from {source.locationLabel} · {connection.name}
+              Into {new Intl.ListFormat("en", { type: "conjunction" }).format(fields.map((f) => `"${f.label}"`))} · from {source.locationLabel} · {connection.name}
               {replacing > 0 && ` · ${plural(replacing, "existing file")} will be replaced`}
             </div>
           </div>
