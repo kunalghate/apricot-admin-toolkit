@@ -139,7 +139,15 @@ if (import.meta.main) {
           const name = (part as File).name;
           if (/\.(exe|heic)$/i.test(name)) return err(400, `FilesError: field_${fid} File type application/octet-stream not allowed`);
           if (part.size > 10_485_760) return err(413, "Request Entity Too Large");
-          await Bun.sleep(part.size / 50_000); // ~50 KB/ms "network"
+          // Like the real API (verified 2026-11-26): an upload saves the whole record as it was when
+          // the upload began, so a simultaneous upload to another field on the same record is lost.
+          const snapshot = [F.consent, F.intake, F.photo].map((f) => [f, files.get(`${id}:${f}`)] as const);
+          await Bun.sleep(LATENCY + part.size / 50_000);
+          for (const [f, v] of snapshot) {
+            if (f === fid) continue;
+            if (v) files.set(`${id}:${f}`, v);
+            else files.delete(`${id}:${f}`);
+          }
           files.set(`${id}:${fid}`, { name, size: part.size });
           uploads.set(`${id}:${fid}`, (uploads.get(`${id}:${fid}`) ?? 0) + 1);
           return Response.json({ data: [{ id, type: "records" }] });

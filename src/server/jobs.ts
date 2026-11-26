@@ -230,14 +230,33 @@ class Job {
     let started = 0;
     let systemicInRow = 0;
     const attempts = new Map<number, number>();
+    // Never work on the same record twice at once. Verified live (2026-11-26): two simultaneous
+    // uploads into different fields of one record both return 200, but one of the files is lost.
+    const taken = new Set<number>();
+    const busyRecords = new Set<number>();
+    const pick = (): JobItem | "wait" | null => {
+      while (next < queue.length && taken.has(next)) next++;
+      if (next >= queue.length) return null;
+      for (let i = next; i < queue.length; i++) {
+        if (taken.has(i) || busyRecords.has(queue[i]!.recordId)) continue;
+        taken.add(i);
+        return queue[i]!;
+      }
+      return "wait"; // everything left is for a record another upload is busy with
+    };
     holdAwake();
     const worker = async () => {
       while (this.generation === gen && this.meta.state === "running") {
         if (limit != null && started >= limit) return;
-        const item = queue[next++];
+        const item = pick();
         if (!item) return;
+        if (item === "wait") {
+          await Bun.sleep(150);
+          continue;
+        }
         started++;
         this.inProgress.add(item.n);
+        busyRecords.add(item.recordId);
         try {
           const r = await this.process(item);
           this.record(r);
@@ -263,6 +282,7 @@ class Job {
           }
         } finally {
           this.inProgress.delete(item.n);
+          busyRecords.delete(item.recordId);
         }
       }
     };
