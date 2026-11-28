@@ -29,7 +29,7 @@ export async function setSecret(name: string, value: string) {
     await Bun.secrets.set({ service: SERVICE, name, value });
     return;
   } catch {
-    console.warn("  (OS credential store unavailable; storing a secret in your user folder instead)");
+    console.warn("  (The credential store of this computer is not available. The toolkit keeps the secret in your user folder.)");
   }
   writeFallback({ ...readFallback(), [name]: value });
 }

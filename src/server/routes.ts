@@ -20,7 +20,7 @@ type Req = Request & { params: Record<string, string | undefined> };
 
 function param(req: Req, name: string): string {
   const v = req.params[name];
-  if (!v) throw new HttpError(400, `Missing ${name}`);
+  if (!v) throw new HttpError(400, `The request does not have the value "${name}".`);
   return v;
 }
 
@@ -44,7 +44,7 @@ function api(handler: (req: Req) => Promise<Response> | Response) {
       if (err instanceof FileError) return json({ error: err.message }, 400);
       if (err instanceof ApricotError) return json({ error: err.message, status: err.status }, 502);
       console.error(err);
-      return json({ error: "Something went wrong inside the toolkit. Try again." }, 500);
+      return json({ error: "An error occurred in the toolkit. Do the step again." }, 500);
     }
   };
 }
@@ -64,7 +64,7 @@ setInterval(() => {
 }, 60_000).unref?.();
 
 function validLocation(loc: FileLocation | undefined): FileLocation {
-  if (!loc || typeof loc !== "object") throw new HttpError(400, "Choose where the files are.");
+  if (!loc || typeof loc !== "object") throw new HttpError(400, "Select the location of the files.");
   switch (loc.kind) {
     case "computer":
       return { kind: "computer", root: String(loc.root ?? "") };
@@ -77,13 +77,13 @@ function validLocation(loc: FileLocation | undefined): FileLocation {
     case "web":
       return { kind: "web" };
     default:
-      throw new HttpError(400, "Unknown file location.");
+      throw new HttpError(400, "The toolkit does not know this type of location.");
   }
 }
 
 function runOr404(req: Req) {
   const job = getJob(param(req, "id"));
-  if (!job) throw new HttpError(404, "That run no longer exists.");
+  if (!job) throw new HttpError(404, "This upload does not exist now.");
   return job;
 }
 
@@ -150,10 +150,10 @@ export const routes = {
       const tuples = (body.keys ?? [])
         .map((t) => t.map((v) => String(v).trim()))
         .filter((t) => t.length > 0 && t.every(Boolean) && !seen.has(joinKey(t)) && seen.add(joinKey(t)));
-      if (tuples.length > 500) throw new HttpError(400, "Send at most 500 lookups at a time.");
+      if (tuples.length > 500) throw new HttpError(400, "The toolkit can find a maximum of 500 records at one time.");
       const matchBy = body.matchBy;
       if (matchBy.kind === "fields" && (matchBy.keys.length === 0 || matchBy.keys.some((k) => !/^field_\d+(_first|_last)?$/.test(k.key))))
-        throw new HttpError(400, "Choose which fields identify the records.");
+        throw new HttpError(400, "Select the fields that identify the records.");
 
       const results = await pool(tuples, 8, async (values): Promise<MatchResult> => {
         const key = joinKey(values);
@@ -190,8 +190,8 @@ export const routes = {
       const formId = Number(url.searchParams.get("formId"));
       const fileFieldIds = (url.searchParams.get("fileFieldIds") ?? "").split(",").map(Number).filter(Boolean);
       const rec = await c.getRecord(Number(param(req, "rid")));
-      if (!rec) throw new HttpError(404, "No record with that ID, or this user can't see it.");
-      if (Number(rec.attributes.form_id) !== formId) throw new HttpError(400, "That record belongs to a different form.");
+      if (!rec) throw new HttpError(404, "There is no record with this record ID, or this Apricot user cannot see it.");
+      if (Number(rec.attributes.form_id) !== formId) throw new HttpError(400, "This record is on a different form.");
       return json(await c.describe(await c.fields(formId), rec, fileFieldIds));
     }),
   },
@@ -222,7 +222,7 @@ export const routes = {
           s.result = r;
           s.count = r.files.length;
         })
-        .catch((err) => (s.error = err instanceof FileError ? err.message : `Couldn't list the files (${(err as Error).message}).`))
+        .catch((err) => (s.error = err instanceof FileError ? err.message : `The toolkit cannot find the files (${(err as Error).message}).`))
         .finally(() => {
           s.done = true;
           s.at = Date.now();
@@ -234,7 +234,7 @@ export const routes = {
   "/api/files/scan/:id": {
     GET: api((req) => {
       const s = scans.get(param(req, "id"));
-      if (!s) throw new HttpError(404, "That file listing expired. Choose the folder again.");
+      if (!s) throw new HttpError(404, "The list of files is not available now. Select the folder again.");
       if (s.done) scans.delete(param(req, "id"));
       return json({ done: s.done, count: s.count, error: s.error, ...(s.done && s.result ? s.result : {}) });
     }),
@@ -244,7 +244,7 @@ export const routes = {
   "/api/files/stat": {
     POST: api(async (req) => {
       const { paths } = (await req.json()) as { paths: string[] };
-      if (!Array.isArray(paths) || paths.length > 5000) throw new HttpError(400, "Send at most 5,000 paths at a time.");
+      if (!Array.isArray(paths) || paths.length > 5000) throw new HttpError(400, "Send a maximum of 5,000 paths at one time.");
       return json(await statPaths(paths.map(String)));
     }),
   },
@@ -255,7 +255,7 @@ export const routes = {
       const form = await req.formData();
       const file = form.get("file");
       const path = String(form.get("path") ?? "");
-      if (!(file instanceof Blob)) throw new HttpError(400, "Missing file.");
+      if (!(file instanceof Blob)) throw new HttpError(400, "The request does not have a file.");
       await stageFile(param(req, "stageId"), path, file);
       return json({ ok: true });
     }),
@@ -293,9 +293,9 @@ export const routes = {
     GET: api(() => json(listJobs())),
     POST: api(async (req) => {
       const spec = (await req.json()) as JobSpec;
-      if (!Array.isArray(spec.items) || spec.items.length > 100_000) throw new HttpError(400, "A run can have at most 100,000 files.");
+      if (!Array.isArray(spec.items) || spec.items.length > 100_000) throw new HttpError(400, "An upload can have a maximum of 100,000 files.");
       const locations = Array.isArray(spec.locations) ? spec.locations.map(validLocation) : undefined;
-      if (locations && spec.items.some((i) => (i.loc ?? 0) >= locations.length)) throw new HttpError(400, "A file points at an unknown location.");
+      if (locations && spec.items.some((i) => (i.loc ?? 0) >= locations.length)) throw new HttpError(400, "A file refers to a location that the toolkit does not know.");
       return json(createJob({ ...spec, location: validLocation(spec.location), locations }), 201);
     }),
   },

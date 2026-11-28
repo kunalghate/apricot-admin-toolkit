@@ -20,7 +20,11 @@ function openZip(file: string): Promise<OpenZip> {
       yauzl.open(file, { lazyEntries: true, autoClose: false, decodeStrings: true }, (err, zip) => {
         if (err || !zip) {
           open.delete(file);
-          return reject(new FileError(/ENOENT/.test(String(err)) ? "That zip file isn't there any more." : "That zip file couldn't be opened. It may be damaged, or not really a zip."));
+          return reject(
+            /ENOENT/.test(String(err))
+              ? new FileError("This zip file is not in its location now.", "not_found")
+              : new FileError("The toolkit cannot open this zip file. It is possible that the file is damaged or is not a zip file."),
+          );
         }
         const entries = new Map<string, yauzl.Entry>();
         zip.on("entry", (e: yauzl.Entry) => {
@@ -33,7 +37,7 @@ function openZip(file: string): Promise<OpenZip> {
         zip.on("end", () => resolve({ zip, entries, lastUsed: Date.now() }));
         zip.on("error", (e) => {
           open.delete(file);
-          reject(new FileError(`That zip file couldn't be read (${e.message}).`));
+          reject(new FileError(`The toolkit cannot read this zip file (${e.message}).`));
         });
         zip.readEntry();
       });
@@ -57,10 +61,10 @@ export async function readZip(file: string, path: string): Promise<Blob> {
   const z = await openZip(file);
   z.lastUsed = Date.now();
   const e = z.entries.get(path);
-  if (!e) throw new FileError("This file isn't in the zip.");
-  if (e.uncompressedSize > MAX_UPLOAD_BYTES) throw new FileError("This file is over the 10 MB limit.");
+  if (!e) throw new FileError("This file is not in the zip file.", "not_found");
+  if (e.uncompressedSize > MAX_UPLOAD_BYTES) throw new FileError("This file is larger than the 10 MB limit.", "too_large");
   const stream = await new Promise<NodeJS.ReadableStream>((resolve, reject) =>
-    z.zip.openReadStream(e, (err, s) => (err || !s ? reject(new FileError("This file in the zip couldn't be read. The zip may be damaged or password-protected.")) : resolve(s))),
+    z.zip.openReadStream(e, (err, s) => (err || !s ? reject(new FileError("The toolkit cannot read this file in the zip file. It is possible that the zip file is damaged or has a password.")) : resolve(s))),
   );
   return new Blob([await collect(stream, MAX_UPLOAD_BYTES + 1)]);
 }

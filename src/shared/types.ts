@@ -151,6 +151,8 @@ export interface ItemResult {
   n: number;
   status: ItemStatus;
   message?: string;
+  /** Set when Apricot did not accept the file type, so "Do again" can include these files. */
+  code?: "rejected_type";
   /** What Apricot shows on the record afterwards. */
   file?: AttachedFile;
   at: string;

@@ -20,23 +20,23 @@ export class ApricotError extends Error {
 export function friendlyMessage(status: number, detail: string): string {
   const d = detail || "";
   if (/Unknown file type/i.test(d))
-    return "Apricot didn't recognise this file type, or the file's extension doesn't match what's inside it.";
+    return "Apricot does not know this file type. Or, the file extension is not correct for the file contents.";
   const notAllowed = d.match(/File type (\S+) not allowed/i);
-  if (notAllowed) return `Your Apricot organization doesn't allow this kind of file (${notAllowed[1]}).`;
+  if (notAllowed) return `Your Apricot organization does not accept this type of file (${notAllowed[1]}).`;
   if (/attachment is requi/i.test(d))
-    return "This form has a required attachment field that's empty on this record, so Apricot won't accept uploads until it's filled.";
-  if (/Field is locked/i.test(d)) return "Apricot blocked the change because a locked field on this record has a value.";
-  if (/Field is hidden/i.test(d)) return "Apricot blocked the change because of a hidden field on this record.";
-  if (/Invalid Parent ID/i.test(d)) return "Apricot couldn't find the parent record this record belongs to.";
-  if (status === 401) return "Apricot didn't accept these credentials. Check the Client ID and Client Secret.";
+    return "A required file field on this record is empty. Apricot does not accept uploads to this record until that field has a file.";
+  if (/Field is locked/i.test(d)) return "Apricot stopped the change. A locked field on this record has a value.";
+  if (/Field is hidden/i.test(d)) return "Apricot stopped the change because of a hidden field on this record.";
+  if (/Invalid Parent ID/i.test(d)) return "Apricot cannot find the parent record of this record.";
+  if (status === 401) return "Apricot did not accept these credentials. Make sure that the Client ID and the Client Secret are correct.";
   if (status === 403)
-    return "The Apricot user behind these credentials doesn't have permission for this. Check their access in Apricot.";
-  if (status === 404) return "Not found, or the Apricot user behind these credentials can't see it.";
-  if (status === 413) return "This file is over the Apricot API's 10 MB upload limit.";
-  if (status === 429) return "Apricot is receiving too many requests. Waiting a moment usually fixes this.";
-  if (status === 504 || status === 502 || status === 503) return "Apricot took too long to respond. Try again in a moment.";
-  if (status === 0) return "Couldn't reach Apricot. Check your internet connection.";
-  return d ? `Apricot said: ${d}` : `Apricot returned an unexpected error (${status}).`;
+    return "The Apricot user of these credentials does not have permission for this. Make sure that this user has access in Apricot.";
+  if (status === 404) return "Apricot cannot find this item, or the Apricot user of these credentials cannot see it.";
+  if (status === 413) return "This file is larger than the 10 MB upload limit of the Apricot API.";
+  if (status === 429) return "Apricot received too many requests in a short time. Wait some minutes, then do the step again.";
+  if (status === 504 || status === 502 || status === 503) return "Apricot did not reply in the usual time. Wait some minutes, then do the step again.";
+  if (status === 0) return "The toolkit cannot connect to Apricot. Make sure that this computer is connected to the internet.";
+  return d ? `Message from Apricot: ${d}` : `Apricot sent an error that the toolkit does not know (status ${status}).`;
 }
 
 async function readError(res: Response): Promise<string> {
@@ -74,7 +74,7 @@ export async function fetchToken(clientId: string, clientSecret: string): Promis
     throw new ApricotError(res.status, detail, friendlyMessage(status, ""));
   }
   const j = (await res.json()) as { access_token?: string; expires_in?: number };
-  if (!j.access_token) throw new ApricotError(500, "no access_token", "Apricot didn't return an access token.");
+  if (!j.access_token) throw new ApricotError(500, "no access_token", "Apricot did not send an access token.");
   return { token: j.access_token, expiresIn: j.expires_in ?? 3600 };
 }
 

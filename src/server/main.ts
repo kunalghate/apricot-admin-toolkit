@@ -82,13 +82,13 @@ try {
   start("127.0.0.1");
 } catch (err: any) {
   if (await alreadyRunning()) {
-    console.log(`\n  ${APP_NAME} is already running.\n  Opening ${URL_TO_OPEN} in your browser…\n`);
+    console.log(`\n  ${APP_NAME} is already open.\n  The toolkit opens ${URL_TO_OPEN} in your web browser.\n`);
     openBrowser(URL_TO_OPEN);
     await Bun.sleep(1500);
     process.exit(0);
   }
-  console.error(`\n  ${APP_NAME} couldn't start: another program is using port ${PORT}.`);
-  console.error(`  Close that program, or restart your computer, then try again.`);
+  console.error(`\n  ${APP_NAME} did not start. Another program uses port ${PORT}.`);
+  console.error(`  Close that program, or restart your computer. Then start the toolkit again.`);
   waitAndExit(1);
 }
 
@@ -108,11 +108,11 @@ console.log(`
    ${APP_NAME}  ·  version ${VERSION}
   ${line}
 
-   The toolkit is running. It should open in your browser.
-   If it doesn't, go to:   ${URL_TO_OPEN}
+   The toolkit started. It opens in your web browser.
+   If it does not open, go to:   ${URL_TO_OPEN}
 
-   Keep this window open while you work, and while uploads
-   are running (you can minimize it). Close it when you're done.
+   Do not close this window while you work or while an upload
+   continues. You can minimize it. When you finish, close it.
   ${line}
 `);
 if (isDev) console.log(`   (dev mode, data folder: ${dataDir()})\n`);

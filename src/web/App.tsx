@@ -96,7 +96,7 @@ export function App() {
     );
   }
 
-  if (!connections) return <div className="h-full grid place-items-center"><Spinner label="Starting…" /></div>;
+  if (!connections) return <div className="h-full grid place-items-center"><Spinner label="Wait while the toolkit starts." /></div>;
 
   // First run: nothing to do until we're connected.
   if (connections.length === 0) {
@@ -105,8 +105,8 @@ export function App() {
         <div className="w-full max-w-lg animate-fade-up">
           <div className="text-center mb-8">
             <BonterraLogo className="h-9 mx-auto mb-8 text-brand-900" />
-            <h1 className="text-3xl font-semibold tracking-tight text-brand-900">Welcome to Apricot Admin Toolkit</h1>
-            <p className="mt-2 text-stone-500">Connect to your Apricot organization to get started.</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-brand-900">Apricot Admin Toolkit</h1>
+            <p className="mt-2 text-stone-500">Connect the toolkit to your Apricot organization to start.</p>
           </div>
           <ConnectForm
             onConnected={async (c) => {
@@ -123,7 +123,7 @@ export function App() {
   const nav: { id: Page; label: string; icon: typeof Home }[] = [
     { id: "home", label: "Home", icon: Home },
     { id: "attach", label: "Attach files", icon: Paperclip },
-    { id: "runs", label: "Runs", icon: History },
+    { id: "runs", label: "Uploads", icon: History },
     { id: "connections", label: "Connections", icon: PlugZap },
   ];
   const running = runs.filter((r) => r.state === "running").length;
@@ -175,7 +175,7 @@ export function App() {
             )}
             <div className="mt-1.5 flex items-center gap-2">
               <EnvBadge env={active.environment} />
-              {active.orgId && <span className="text-xs text-stone-400">Org {active.orgId}</span>}
+              {active.orgId && <span className="text-xs text-stone-400">Organization {active.orgId}</span>}
             </div>
           </div>
           {version && <div className="text-[11px] text-stone-400 text-center mt-3">Version {version}</div>}
@@ -185,7 +185,7 @@ export function App() {
       <main className="flex-1 min-w-0 overflow-y-auto">
         {active.environment === "production" && (
           <div className="sticky top-0 z-10 bg-red-600 text-white text-sm text-center py-1.5">
-            You're working in <strong>Production</strong>. Changes affect real records.
+            You are connected to <strong>Production</strong>. All changes affect real records.
           </div>
         )}
         <div className="max-w-5xl mx-auto px-8 py-10">

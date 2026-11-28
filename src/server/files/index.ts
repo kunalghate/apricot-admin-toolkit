@@ -23,13 +23,13 @@ export const stagingRoot = () => {
 };
 
 export function stageDir(stageId: string): string {
-  if (!/^[a-z0-9-]{8,64}$/i.test(stageId)) throw new FileError("Invalid batch.");
+  if (!/^[a-z0-9-]{8,64}$/i.test(stageId)) throw new FileError("The folder of dropped files is not valid.");
   return join(stagingRoot(), stageId);
 }
 
 export async function stageFile(stageId: string, relPath: string, data: Blob) {
   const clean = relPath.replace(/\\/g, "/").split("/").filter((p) => p && p !== "." && p !== "..").join("/");
-  if (!clean) throw new FileError("Missing file name.");
+  if (!clean) throw new FileError("The file does not have a name.");
   const full = resolveIn(stageDir(stageId), clean);
   await Bun.write(full, data, { createPath: true });
 }
@@ -80,6 +80,6 @@ export async function readFile(loc: FileLocation, path: string): Promise<{ blob:
     case "server":
       return { blob: await readServer(loc.serverId, loc.root, path), name };
     case "web":
-      throw new FileError("This row doesn't have a web link.");
+      throw new FileError("This row does not have a web link.");
   }
 }

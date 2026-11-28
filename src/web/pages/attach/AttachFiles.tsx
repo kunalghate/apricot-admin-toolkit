@@ -14,7 +14,7 @@ export interface Target {
   fileField: FieldInfo;
 }
 
-const STEPS = ["Form & field", "Files", "Match", "Review", "Upload"];
+const STEPS = ["Form and field", "Files", "Records", "Examine", "Upload"];
 
 export function AttachFilesPage({ connection, onStarted }: { connection: Connection; onStarted: (runId: string) => void }) {
   const [step, setStep] = useState(0);
@@ -25,7 +25,7 @@ export function AttachFilesPage({ connection, onStarted }: { connection: Connect
 
   return (
     <div className="animate-fade-up">
-      <PageHeader title="Attach files to records" subtitle="Add documents to many existing records at once. Every upload is checked afterwards." />
+      <PageHeader title="Attach files to records" subtitle="Attach files to many records at the same time. The toolkit verifies each file after the upload." />
       <Steps steps={STEPS} current={step} />
 
       {step === 0 && (

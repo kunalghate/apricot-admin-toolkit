@@ -113,20 +113,20 @@ export function rowState(r: Row, replaceExisting: boolean, dupes: Set<string>, i
 }
 
 export const STATE_COPY: Record<RowState, { label: string; tone: "green" | "amber" | "red" | "neutral" | "blue"; help: string }> = {
-  ready: { label: "Ready", tone: "green", help: "Will be attached." },
-  replace: { label: "Will replace", tone: "amber", help: "This record already has a file here. It will be replaced, and the old file can't be restored." },
-  has_file: { label: "Already has a file", tone: "neutral", help: "Skipped so the existing file isn't replaced." },
-  duplicate: { label: "Duplicate", tone: "amber", help: "Another file is already going into this field on this record. A field holds one file, so remove one of them." },
-  no_key: { label: "Missing details", tone: "red", help: "Couldn't find what identifies the record. Enter the record ID manually." },
-  not_found: { label: "Record not found", tone: "red", help: "No record matches. Check the details, or enter the record ID manually." },
-  multiple: { label: "Several matches", tone: "amber", help: "More than one record matches. Pick the right one." },
-  error: { label: "Lookup failed", tone: "red", help: "Something went wrong looking this up." },
-  file_missing: { label: "File not found", tone: "red", help: "The spreadsheet names a file that isn't in the chosen location." },
-  file_ambiguous: { label: "Several files match", tone: "amber", help: "More than one file matches the name in the spreadsheet. Pick the right one." },
-  blocked_type: { label: "Unsafe file type", tone: "red", help: "Program files like .exe can't be attached." },
-  too_large: { label: "Too large", tone: "red", help: `Over the Apricot API's ${MAX_UPLOAD_LABEL} limit. Compress or split it, or attach it in Apricot directly.` },
-  not_image: { label: "Not an image", tone: "red", help: "This is an Image field, so only pictures (.jpg, .png, .gif…) can go here." },
-  excluded: { label: "Removed", tone: "neutral", help: "You removed this from the batch." },
+  ready: { label: "Ready", tone: "green", help: "The toolkit will attach this file." },
+  replace: { label: "Will replace", tone: "amber", help: "This record has a file in this field. The toolkit will replace it. You cannot get the old file back." },
+  has_file: { label: "Has a file", tone: "neutral", help: "This record has a file in this field. The toolkit does not replace it." },
+  duplicate: { label: "Duplicate", tone: "amber", help: "A different file goes into this field on this record. A field holds one file. Remove one of the two." },
+  no_key: { label: "Data missing", tone: "red", help: "The toolkit cannot find the data that identifies the record. Type the record ID." },
+  not_found: { label: "No record", tone: "red", help: "No record has this data. Examine the data, or type the record ID." },
+  multiple: { label: "More than one record", tone: "amber", help: "More than one record has this data. Select the correct record." },
+  error: { label: "Search failed", tone: "red", help: "A problem occurred when the toolkit tried to find the record." },
+  file_missing: { label: "No file", tone: "red", help: "The spreadsheet gives a file that is not in the location that you selected." },
+  file_ambiguous: { label: "More than one file", tone: "amber", help: "More than one file has the name in the spreadsheet. Select the correct file." },
+  blocked_type: { label: "Unsafe file type", tone: "red", help: "You cannot attach program files, for example .exe files." },
+  too_large: { label: "File too large", tone: "red", help: `The Apricot API accepts files up to ${MAX_UPLOAD_LABEL}. Make the file smaller, or attach it in Apricot.` },
+  not_image: { label: "Not an image", tone: "red", help: "This is an image field. It accepts only images, for example .jpg, .png or .gif files." },
+  excluded: { label: "Removed", tone: "neutral", help: "You removed this row from the upload." },
 };
 
 export const willUpload = (s: RowState) => s === "ready" || s === "replace";

@@ -88,19 +88,19 @@ export async function places(): Promise<Place[]> {
 
 export async function browse(dir: string): Promise<BrowseResult> {
   const d = cleanPath(dir);
-  if (!d || !isAbsolute(d)) throw new FileError("Enter a full folder path, like C:\\Users\\you\\Documents or /Users/you/Documents.");
+  if (!d || !isAbsolute(d)) throw new FileError("Enter the full path of the folder, for example C:\\Users\\you\\Documents or /Users/you/Documents.");
   const abs = resolve(d);
   const dirents = await withTimeout(
     readdir(abs, { withFileTypes: true }).catch((e: NodeJS.ErrnoException) => {
-      if (e.code === "ENOENT") throw new FileError("That folder doesn't exist on this computer.");
-      if (e.code === "ENOTDIR") throw new FileError("That's a file, not a folder.");
-      if (e.code === "EACCES" || e.code === "EPERM") throw new FileError("You don't have permission to open that folder.");
-      throw new FileError(`Couldn't open that folder (${e.code ?? e.message}).`);
+      if (e.code === "ENOENT") throw new FileError("This folder does not exist on this computer.", "not_found");
+      if (e.code === "ENOTDIR") throw new FileError("This is a file, not a folder.");
+      if (e.code === "EACCES" || e.code === "EPERM") throw new FileError("You do not have permission to open this folder.", "auth");
+      throw new FileError(`The toolkit cannot open this folder (${e.code ?? e.message}).`);
     }),
     20_000,
     null,
   );
-  if (!dirents) throw new FileError("That folder took too long to open. If it's on a network drive, check you're connected.");
+  if (!dirents) throw new FileError("This folder did not open in the usual time. If it is on a network drive, make sure that you are connected to the network.", "unreachable");
 
   const entries: BrowseEntry[] = [];
   const files: { name: string; full: string }[] = [];
@@ -125,7 +125,7 @@ export async function browse(dir: string): Promise<BrowseResult> {
 /** Every file under a folder (recursively), with paths relative to it. */
 export async function scan(root: string, onProgress?: (n: number) => void): Promise<{ files: FileRef[]; truncated: boolean }> {
   const base = resolve(cleanPath(root));
-  if (!(await isDir(base))) throw new FileError("That folder doesn't exist on this computer, or it can't be opened.");
+  if (!(await isDir(base))) throw new FileError("This folder does not exist on this computer, or the toolkit cannot open it.", "not_found");
   const files: FileRef[] = [];
   let truncated = false;
   const walk = async (dir: string, depth: number): Promise<void> => {
@@ -182,18 +182,18 @@ export async function statPaths(paths: string[]): Promise<(number | null)[]> {
 export function resolveIn(root: string, path: string): string {
   if (!root) {
     const c = cleanPath(path);
-    if (!isAbsolute(c)) throw new FileError("This file's path isn't a full path.");
+    if (!isAbsolute(c)) throw new FileError("The path of this file is not a full path.");
     return resolve(c);
   }
   const base = resolve(cleanPath(root));
   const full = resolve(base, path);
   const rel = relative(base, full);
-  if (rel.startsWith("..") || isAbsolute(rel)) throw new FileError("This file is outside the chosen folder.");
+  if (rel.startsWith("..") || isAbsolute(rel)) throw new FileError("This file is not in the selected folder.");
   return full;
 }
 
 export async function readLocal(full: string): Promise<Blob> {
   const f = Bun.file(full);
-  if (!(await f.exists())) throw new FileError("The file isn't there any more. Was it moved, renamed or deleted?");
+  if (!(await f.exists())) throw new FileError("The file is not in its location now. It is possible that a person moved, renamed, or deleted it.", "not_found");
   return f;
 }

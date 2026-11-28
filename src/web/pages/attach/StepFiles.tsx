@@ -30,12 +30,12 @@ export function StepFiles({
   return (
     <div className="space-y-6">
       <Card className="p-6">
-        <Label hint="This decides how each file gets linked to the right record.">How do you know which file goes to which record?</Label>
+        <Label hint="The toolkit uses this to attach each file to the correct record.">What tells the toolkit which record each file goes to?</Label>
         <div className="grid sm:grid-cols-2 gap-2 max-w-3xl mt-2">
           {(
             [
-              { id: "names", icon: FileText, title: "The file names say", desc: "e.g. 25698_consent.pdf or Doe_Jane_1985-03-02.pdf" },
-              { id: "sheet", icon: FileSpreadsheet, title: "A spreadsheet says", desc: "A list with a file (name, path or link) and the record it belongs to on each row" },
+              { id: "names", icon: FileText, title: "The file names", desc: "For example, 25698_consent.pdf or Doe_Jane_1985-03-02.pdf" },
+              { id: "sheet", icon: FileSpreadsheet, title: "A spreadsheet", desc: "Each row gives a file (name, path or link) and the record for that file" },
             ] as const
           ).map((o) => (
             <button
@@ -113,7 +113,7 @@ function FileSummary({
             <div className="font-medium">{plural(files.length, "file")} <span className="font-normal text-stone-500">· {formatBytes(total)} · {types.slice(0, 6).join(", ")}{types.length > 6 ? "…" : ""}</span></div>
             <div className="text-xs text-stone-500 truncate" title={label}>From {label}</div>
           </div>
-          <Button variant="secondary" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={onChange}>Choose different files</Button>
+          <Button variant="secondary" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={onChange}>Select different files</Button>
         </div>
         <div className="max-h-72 overflow-y-auto divide-y divide-stone-100">
           {files.slice(0, 300).map((f) => {
@@ -122,9 +122,9 @@ function FileSummary({
               <div key={f.id} className="flex items-center gap-3 px-5 py-2 text-sm">
                 <FileIcon className="size-4 text-stone-400 shrink-0" />
                 <span className="flex-1 min-w-0 truncate" title={f.path}>{f.path}</span>
-                {risk === "blocked" && <Badge tone="red">Unsafe type</Badge>}
-                {risk === "unusual" && <Badge tone="amber">Unusual type</Badge>}
-                {(f.size ?? 0) > MAX_UPLOAD_BYTES && <Badge tone="red">Over {MAX_UPLOAD_LABEL}</Badge>}
+                {risk === "blocked" && <Badge tone="red">Unsafe file type</Badge>}
+                {risk === "unusual" && <Badge tone="amber">Unusual file type</Badge>}
+                {(f.size ?? 0) > MAX_UPLOAD_BYTES && <Badge tone="red">More than {MAX_UPLOAD_LABEL}</Badge>}
                 {f.size != null && <span className="text-stone-400 tabular-nums w-16 text-right">{formatBytes(f.size)}</span>}
               </div>
             );
@@ -133,15 +133,15 @@ function FileSummary({
         </div>
       </Card>
       <div className="space-y-2">
-        {truncated && <Callout tone="amber" title="That's a very large folder">Only the first 100,000 files were listed. Choose a smaller folder to be sure every file is included.</Callout>}
-        {blocked.length > 0 && <Callout tone="red" title={`${plural(blocked.length, "program file")} will be skipped`}>Files like .exe can't be attached to Apricot records.</Callout>}
-        {notImages.length > 0 && <Callout tone="red" title={`${plural(notImages.length, "file")} aren't pictures and will be skipped`}>"{fieldLabel}" is an Image field, so only pictures (.jpg, .png, .gif…) can go in it.</Callout>}
+        {truncated && <Callout tone="amber" title="This folder is very large">The toolkit found only the first 100,000 files. Select a smaller folder to include all the files.</Callout>}
+        {blocked.length > 0 && <Callout tone="red" title={`The toolkit will not upload ${plural(blocked.length, "program file")}`}>You cannot attach program files, for example .exe files, to Apricot records.</Callout>}
+        {notImages.length > 0 && <Callout tone="red" title={`The toolkit will not upload ${plural(notImages.length, "file")} that are not images`}>"{fieldLabel}" is an image field. It accepts only images, for example .jpg, .png or .gif files.</Callout>}
         {unusual.length > 0 && !imageOnly && (
-          <Callout tone="amber" title={`${plural(unusual.length, "file")} with a less common type`}>
-            Each Apricot organization decides which file types it accepts. These will be tried. If Apricot rejects a type, the rest of that type are skipped.
+          <Callout tone="amber" title={`${plural(unusual.length, "file")} with an unusual file type`}>
+            Each Apricot organization sets the file types that it accepts. The toolkit will try to upload these files. If Apricot rejects a file type, the toolkit does not upload the other files of that type.
           </Callout>
         )}
-        {large.length > 0 && <Callout tone="red" title={`${plural(large.length, "file")} over ${MAX_UPLOAD_LABEL} will be skipped`}>The Apricot API only accepts files up to {MAX_UPLOAD_LABEL}. Compress or split these, or attach them in Apricot directly.</Callout>}
+        {large.length > 0 && <Callout tone="red" title={`The toolkit will not upload ${plural(large.length, "file")} larger than ${MAX_UPLOAD_LABEL}`}>The Apricot API accepts files up to {MAX_UPLOAD_LABEL}. Make these files smaller, or attach them in Apricot.</Callout>}
       </div>
     </>
   );
@@ -180,7 +180,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
     setSheetError(null);
     try {
       const all = await readTable(file);
-      if (all.length < 2) throw new Error("That spreadsheet looks empty. It needs a header row and at least one row of data.");
+      if (all.length < 2) throw new Error("The spreadsheet is empty. It must have a header row and one or more rows of data.");
       const width = Math.max(...all.slice(0, 50).map((r) => r.length));
       const header = Array.from({ length: width }, (_, i) => all[0]![i]?.trim() || `Column ${i + 1}`);
       const s: Sheet = { name: file.name, header, rows: all.slice(1) };
@@ -206,7 +206,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
       setPickingFor(null);
       setFullPaths({ checking: false, files: null });
     } catch (e) {
-      setSheetError((e as Error).message || "Couldn't read that file. Use an Excel (.xlsx) or CSV file.");
+      setSheetError((e as Error).message || "The toolkit cannot read this file. Use an Excel (.xlsx) or CSV file.");
     }
   };
 
@@ -262,8 +262,8 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
       let key: string;
       let place: Place | null;
       if (o) [key, place] = [`own:${c.col}`, { location: o.location, label: o.label, files: o.files }];
-      else if (st === "links") [key, place] = ["web", { location: { kind: "web" }, label: "Web links in the spreadsheet", files: [] }];
-      else if (st === "full") [key, place] = ["full", fullPaths.files ? { location: { kind: "computer", root: "" }, label: "The paths in the spreadsheet", files: fullPaths.files } : null];
+      else if (st === "links") [key, place] = ["web", { location: { kind: "web" }, label: "the web links in the spreadsheet", files: [] }];
+      else if (st === "full") [key, place] = ["full", fullPaths.files ? { location: { kind: "computer", root: "" }, label: "the paths in the spreadsheet", files: fullPaths.files } : null];
       else [key, place] = ["shared", shared ? { location: shared.location, label: shared.label, files: shared.files } : null];
       if (!place) {
         ready = false;
@@ -324,7 +324,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
     <>
       {/* 1. The spreadsheet */}
       <Card className="p-6">
-        <Label hint="Excel (.xlsx) or CSV. Use it as it is: you'll tell the toolkit which columns are which.">The spreadsheet</Label>
+        <Label hint="Use an Excel (.xlsx) or CSV file. You do not have to change it. On the next steps, you tell the toolkit what each column is.">The spreadsheet</Label>
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -343,11 +343,11 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                 <strong>{sheet.name}</strong> <span className="text-stone-500">· {plural(sheet.rows.length, "row")} · {plural(sheet.header.length, "column")}</span>
               </>
             ) : (
-              <span className="text-stone-500">Drop the spreadsheet here, or choose it.</span>
+              <span className="text-stone-500">Drag the spreadsheet here, or select it.</span>
             )}
           </div>
           <Button variant="secondary" icon={<Upload className="size-4" />} onClick={() => sheetInput.current?.click()}>
-            {sheet ? "Choose a different one" : "Choose spreadsheet"}
+            {sheet ? "Select a different spreadsheet" : "Select spreadsheet"}
           </Button>
           <input ref={sheetInput} type="file" accept=".xlsx,.csv" hidden onChange={(e) => {
             const f = e.target.files?.[0];
@@ -361,7 +361,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
       {/* 2. Which columns have files */}
       {sheet && (
         <Card className="p-6">
-          <Label hint="A column can hold file names, paths (like C:\Exports\abc.pdf), or web links. Each column goes into one file field.">
+          <Label hint="A column can have file names, paths (for example C:\Exports\abc.pdf) or web links. The files in one column go into one file field.">
             Which column has the files for "{target.fileField.label}"?
           </Label>
           <div className="mt-3 space-y-2 max-w-3xl">
@@ -374,14 +374,14 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                     ))}
                   </Select>
                   <div className="text-xs text-stone-500 mt-1.5 truncate font-mono">
-                    e.g. {sheet.rows.slice(0, 3).map((r) => r[c.col]).filter(Boolean).join("  ·  ") || "(empty)"}
+                    For example: {sheet.rows.slice(0, 3).map((r) => r[c.col]).filter(Boolean).join("  ·  ") || "(empty)"}
                   </div>
                 </div>
                 <ArrowRight className="size-4 text-stone-400 shrink-0" />
                 <div className="w-64">
                   <Select value={c.fieldId} onChange={(e) => setFileCols(fileCols.map((x, j) => (j === i ? { ...x, fieldId: Number(e.target.value) } : x)))}>
                     {fileFields.map((f) => (
-                      <option key={f.id} value={f.id}>{f.label}{isImageField(f) ? " (pictures)" : ""} · ID {f.id}</option>
+                      <option key={f.id} value={f.id}>{f.label}{isImageField(f) ? " (image field)" : ""} · ID {f.id}</option>
                     ))}
                   </Select>
                 </div>
@@ -390,15 +390,15 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                 </button>
               </div>
             ))}
-            {fileCols.length === 0 && <Callout tone="amber">Couldn't spot a column with files in it. Add one below.</Callout>}
+            {fileCols.length === 0 && <Callout tone="amber">The toolkit did not find a column with files. Add the column below.</Callout>}
             {pendingSuggestions.map((g) => (
               <div key={g.col} className="flex items-center gap-3 rounded-xl bg-sky-50/60 ring-1 ring-sky-200/70 px-3 py-2.5 text-sm">
                 <Sparkles className="size-4 text-sky-600 shrink-0" />
                 <span className="flex-1 min-w-0 text-stone-700">
-                  This spreadsheet also has <strong>{sheet.header[g.col]}</strong>. Attach those to <strong>{fieldLabel(g.fieldId)}</strong> in the same run?
+                  The spreadsheet also has the column <strong>{sheet.header[g.col]}</strong>. You can attach these files to <strong>{fieldLabel(g.fieldId)}</strong> in the same upload.
                 </span>
                 <Button size="sm" variant="secondary" icon={<Plus className="size-3.5" />} onClick={() => setFileCols([...fileCols, g])}>Add</Button>
-                <button className="text-stone-400 hover:text-stone-700 cursor-pointer" onClick={() => setSuggested(suggested.filter((x) => x.col !== g.col))} aria-label="No thanks">
+                <button className="text-stone-400 hover:text-stone-700 cursor-pointer" onClick={() => setSuggested(suggested.filter((x) => x.col !== g.col))} aria-label="Do not add this column">
                   <X className="size-4" />
                 </button>
               </div>
@@ -413,7 +413,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                   setFileCols([...fileCols, { col: otherCols[0]!, fieldId: fid }]);
                 }}
               >
-                {fileCols.length ? "Add another file column" : "Add a file column"}
+                Add a file column
               </Button>
             )}
           </div>
@@ -432,8 +432,8 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
               intro={
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-stone-800">Where are the "{sheet.header[pickingFor]}" files?</div>
-                    <p className="text-xs text-stone-500 mt-0.5">Pick the folder that contains them (subfolders are included).</p>
+                    <div className="text-sm font-medium text-stone-800">Where are the files of the column "{sheet.header[pickingFor]}"?</div>
+                    <p className="text-xs text-stone-500 mt-0.5">Select the folder that has the files. The toolkit also looks in all the folders in it.</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setPickingFor(null)}>Cancel</Button>
                 </div>
@@ -444,9 +444,9 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
               onPicked={setShared}
               intro={
                 <div>
-                  <div className="text-sm font-medium text-stone-800">Where are the files listed in the spreadsheet?</div>
+                  <div className="text-sm font-medium text-stone-800">Where are the files that the spreadsheet gives?</div>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Pick the folder that contains them; subfolders are included. If some columns' files are somewhere else, you can say so next.
+                    Select the folder that has the files. The toolkit also looks in all the folders in it. Files for a column can be in a different location. You can select that location on the next screen.
                   </p>
                 </div>
               }
@@ -454,9 +454,9 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
           ) : (
             <Card className="overflow-hidden">
               <div className="flex items-center gap-3 px-5 pt-4 pb-2">
-                <div className="flex-1 text-sm font-medium text-stone-800">Where the files are</div>
+                <div className="flex-1 text-sm font-medium text-stone-800">Locations of the files</div>
                 {shared && fileCols.some((c) => !own[c.col] && styles.get(c.col) === "relative") && (
-                  <Button variant="ghost" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={() => setShared(null)}>Change folder</Button>
+                  <Button variant="ghost" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={() => setShared(null)}>Select a different folder</Button>
                 )}
               </div>
               <div className="divide-y divide-stone-100">
@@ -475,12 +475,12 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                           <strong>{sheet.header[c.col]}</strong> <span className="text-stone-400">→ {fieldLabel(c.fieldId)}</span>
                         </div>
                         <div className="text-xs text-stone-500 truncate" title={p?.label}>
-                          {checking ? "Checking the paths on this computer…" : p ? `From ${shortPlace(p.label)}` : "Not chosen yet"}
+                          {checking ? "The toolkit examines the paths on this computer" : p ? `From ${shortPlace(p.label)}` : "No location selected"}
                         </div>
                       </div>
                       {pc && pc.total > 0 && (
                         <Badge tone={pc.found === pc.total ? "green" : pc.found === 0 ? "red" : "amber"}>
-                          {pc.found === 0 ? "None found here" : `${pc.found.toLocaleString()} of ${pc.total.toLocaleString()} found`}
+                          {pc.found === 0 ? "No files found here" : `${pc.found.toLocaleString()} of ${pc.total.toLocaleString()} found`}
                         </Badge>
                       )}
                       {o && (
@@ -493,7 +493,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                       )}
                       {st !== "links" && (
                         <Button variant={pc && pc.total > 0 && pc.found === 0 ? "primary" : "secondary"} size="sm" icon={<FolderOpen className="size-3.5" />} onClick={() => setPickingFor(c.col)}>
-                          {o ? "Choose again" : "Somewhere else…"}
+                          {o ? "Select again" : "Select a different location"}
                         </Button>
                       )}
                     </div>
@@ -501,7 +501,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                 })}
               </div>
               {fileCols.some((c) => styles.get(c.col) === "links" && !own[c.col]) && (
-                <p className="px-5 pb-4 pt-1 text-xs text-stone-500">Web links are downloaded during the upload. They must open the file directly, without a sign-in.</p>
+                <p className="px-5 pb-4 pt-1 text-xs text-stone-500">The toolkit downloads the files from the web links during the upload. Each link must open the file directly, without a sign-in.</p>
               )}
               {fullPaths.error && <p className="px-5 pb-4 text-xs text-red-700">{fullPaths.error}</p>}
             </Card>
@@ -514,8 +514,8 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
         <Card className="p-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Stat n={stats.found} label="files found" tone="green" />
-            <Stat n={stats.missing} label="not found" tone={stats.missing ? "red" : "neutral"} />
-            <Stat n={stats.ambiguous} label="match several files" tone={stats.ambiguous ? "amber" : "neutral"} />
+            <Stat n={stats.missing} label="files not found" tone={stats.missing ? "red" : "neutral"} />
+            <Stat n={stats.ambiguous} label="have more than one file" tone={stats.ambiguous ? "amber" : "neutral"} />
             <Stat n={stats.empty} label="empty cells" tone="neutral" />
           </div>
           {stats.examples.length > 0 && (
@@ -524,19 +524,19 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                 <div key={i} className="flex items-center gap-3 px-4 py-2">
                   <span className="text-xs text-stone-400 w-14 shrink-0">Row {e.row}</span>
                   <span className="flex-1 truncate font-mono text-xs">{e.value}</span>
-                  <Badge tone={e.status === "missing" ? "red" : "amber"}>{e.status === "missing" ? "Not found" : "Several match"}</Badge>
+                  <Badge tone={e.status === "missing" ? "red" : "amber"}>{e.status === "missing" ? "Not found" : "More than one file"}</Badge>
                 </div>
               ))}
             </div>
           )}
           {(stats.missing > 0 || stats.ambiguous > 0) && (
             <p className="text-sm text-stone-500 mt-3">
-              You can continue. You'll see every problem on the Review step, and can download the list to fix in the spreadsheet.
-              {stats.missing > 0 && " If a whole column isn't found, its files are probably somewhere else: use \"Somewhere else…\" above."}
+              You can continue. The Examine step shows all the problems. You can download the list and correct the spreadsheet.
+              {stats.missing > 0 && " If the toolkit finds no files for a column, the files are possibly in a different location. Click \"Select a different location\" above."}
             </p>
           )}
           {stats.unused > 0 && stats.listed > 0 && (
-            <p className="text-xs text-stone-400 mt-2">{plural(stats.unused, "file")} in the chosen {places.list.length > 1 ? "places" : "place"} {stats.unused === 1 ? "isn't" : "aren't"} in the spreadsheet. They'll be left alone.</p>
+            <p className="text-xs text-stone-400 mt-2">{plural(stats.unused, "file")} in the selected {places.list.length > 1 ? "locations" : "location"} {stats.unused === 1 ? "is" : "are"} not in the spreadsheet. The toolkit does not upload {stats.unused === 1 ? "it" : "them"}.</p>
           )}
         </Card>
       )}

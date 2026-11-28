@@ -7,10 +7,10 @@ export function HomePage({ go, connection, runs }: { go: (r: string) => void; co
   const needsYou = runs.filter((r) => r.state === "running" || r.state === "interrupted" || r.state === "paused");
   return (
     <div className="animate-fade-up">
-      <PageHeader title="What would you like to do?" subtitle={`Working in ${connection.name}.`} />
+      <PageHeader title="Select a task" subtitle={`Connection: ${connection.name}`} />
       {needsYou.length > 0 && (
         <div className="mb-8 space-y-3">
-          <div className="text-sm font-medium text-stone-700">{needsYou.some((r) => r.state === "running") ? "In progress" : "Waiting for you"}</div>
+          <div className="text-sm font-medium text-stone-700">{needsYou.some((r) => r.state === "running") ? "In progress" : "These uploads need your action"}</div>
           {needsYou.slice(0, 3).map((r) => <RunCard key={r.id} run={r} onOpen={() => go(`runs/${r.id}`)} />)}
         </div>
       )}
@@ -25,7 +25,7 @@ export function HomePage({ go, connection, runs }: { go: (r: string) => void; co
               <ArrowRight className="size-4 opacity-0 -translate-x-1 transition group-hover:opacity-100 group-hover:translate-x-0" />
             </div>
             <p className="text-sm text-stone-500 mt-1.5 leading-relaxed">
-              Attach documents to the right records, thousands at a time: from a folder, a file server, or a customer's mapping spreadsheet.
+              Attach many files to the correct records at the same time. The files can come from a folder, a file server, or a spreadsheet.
             </p>
           </Card>
         </button>
@@ -34,15 +34,15 @@ export function HomePage({ go, connection, runs }: { go: (r: string) => void; co
             <FilePlus2 className="size-5" />
           </div>
           <div className="font-semibold text-stone-900 flex items-center gap-2">
-            Create records with files <Badge>Coming soon</Badge>
+            Make new records with files <Badge>Not available yet</Badge>
           </div>
           <p className="text-sm text-stone-500 mt-1.5 leading-relaxed">
-            Import new records from a spreadsheet, with their documents attached.
+            Make new records from a spreadsheet, and attach their files.
           </p>
         </Card>
       </div>
       <p className="mt-10 text-sm text-stone-400 flex items-center gap-2">
-        <Sparkles className="size-4" /> More admin tools are on the way.
+        <Sparkles className="size-4" /> More tools will be available at a later time.
       </p>
     </div>
   );

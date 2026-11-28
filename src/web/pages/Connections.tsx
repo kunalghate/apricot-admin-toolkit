@@ -30,7 +30,7 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
     <Card className="p-6">
       <form onSubmit={submit} className="space-y-5">
         <div>
-          <Label>Which Apricot environment is this?</Label>
+          <Label>Select the Apricot environment</Label>
           <div className="grid grid-cols-2 gap-2">
             {(["sandbox", "production"] as const).map((env) => (
               <button
@@ -44,7 +44,7 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
               >
                 <div className="font-medium text-sm">{env === "sandbox" ? "Sandbox" : "Production"}</div>
                 <div className="text-xs text-stone-500 mt-0.5">
-                  {env === "sandbox" ? "A test copy. Safe to experiment." : "Your live data. Changes are real."}
+                  {env === "sandbox" ? "A test copy of your data. Changes do not affect real records." : "Your real data. All changes affect real records."}
                 </div>
               </button>
             ))}
@@ -52,8 +52,8 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
         </div>
 
         <div>
-          <Label htmlFor="cname" hint="Optional. Helps you tell connections apart.">Name</Label>
-          <Input id="cname" placeholder={environment === "sandbox" ? "e.g. Sandbox" : "e.g. Main office"} value={name} onChange={(e) => setName(e.target.value)} />
+          <Label htmlFor="cname" hint="Optional. Use a name that helps you identify this connection.">Name</Label>
+          <Input id="cname" placeholder={environment === "sandbox" ? "For example: Sandbox" : "For example: Main office"} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="cid">Client ID</Label>
@@ -64,11 +64,11 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
           <Input id="csecret" type="password" autoComplete="off" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} required />
         </div>
 
-        {error && <Callout tone="red" title="Couldn't connect">{error}</Callout>}
+        {error && <Callout tone="red" title="The connection failed">{error}</Callout>}
 
         <div className="flex items-center gap-3">
           <Button type="submit" size="lg" loading={busy} icon={<KeyRound className="size-4" />} className="flex-1">
-            {busy ? "Checking…" : "Connect"}
+            {busy ? "Test in progress" : "Connect"}
           </Button>
           {onCancel && (
             <Button type="button" variant="ghost" size="lg" onClick={onCancel}>
@@ -78,11 +78,11 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
         </div>
         <p className="flex items-start gap-2 text-xs text-stone-500">
           <Lock className="size-3.5 mt-0.5 shrink-0" />
-          Your secret is stored in this computer's secure credential store ({navigator.userAgent.includes("Windows") ? "Windows Credential Manager" : "Keychain"}).
-          It never leaves this computer except to sign in to Apricot.
+          The toolkit keeps your secret in the secure credential store of this computer ({navigator.userAgent.includes("Windows") ? "Windows Credential Manager" : "Keychain"}).
+          The toolkit sends the secret only to Apricot, to sign in.
         </p>
         <p className="text-xs text-stone-500">
-          Don't have a Client ID? Ask your Apricot administrator to create API credentials for you.
+          If you do not have a Client ID, ask your Apricot administrator for API credentials.
         </p>
       </form>
     </Card>
@@ -108,7 +108,7 @@ export function ConnectionsPage({
     setChecking(c.id);
     try {
       const r = await api.check(c.id);
-      setStatus((s) => ({ ...s, [c.id]: { ok: true, message: `Working${r.orgId ? ` · Org ${r.orgId}` : ""}` } }));
+      setStatus((s) => ({ ...s, [c.id]: { ok: true, message: `The connection is correct${r.orgId ? ` · Organization ${r.orgId}` : ""}` } }));
     } catch (e) {
       setStatus((s) => ({ ...s, [c.id]: { ok: false, message: (e as Error).message } }));
     } finally {
@@ -117,7 +117,7 @@ export function ConnectionsPage({
   };
 
   const remove = async (c: Connection) => {
-    if (!confirm(`Remove the connection "${c.name}"? You can add it again later.`)) return;
+    if (!confirm(`Remove the connection "${c.name}"? You can add it again at a later time.`)) return;
     await api.removeConnection(c.id);
     await onChanged();
   };
@@ -126,7 +126,7 @@ export function ConnectionsPage({
     <div className="animate-fade-up">
       <PageHeader
         title="Connections"
-        subtitle="The Apricot organizations this toolkit can work with."
+        subtitle="The Apricot organizations that the toolkit can connect to."
         actions={!adding && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add connection</Button>}
       />
 
@@ -153,8 +153,8 @@ export function ConnectionsPage({
                 {c.id === activeId && <Badge tone="apricot">In use</Badge>}
               </div>
               <div className="text-sm text-stone-500 mt-1">
-                {c.orgId ? `Org ${c.orgId}` : "Org unknown"}
-                {c.userLabel && ` · Signed in as ${c.userLabel}`} · Client ID ending …{c.clientIdHint}
+                {c.orgId ? `Organization ${c.orgId}` : "Organization not known"}
+                {c.userLabel && ` · User: ${c.userLabel}`} · Client ID: …{c.clientIdHint}
               </div>
               {status[c.id] && (
                 <div className={cx("text-sm mt-2 flex items-center gap-1.5", status[c.id]!.ok ? "text-lime-800" : "text-red-700")}>
@@ -163,10 +163,10 @@ export function ConnectionsPage({
               )}
             </div>
             {c.id !== activeId && (
-              <Button variant="secondary" size="sm" onClick={() => onChoose(c.id)}>Use this</Button>
+              <Button variant="secondary" size="sm" onClick={() => onChoose(c.id)}>Use this connection</Button>
             )}
             <Button variant="secondary" size="sm" loading={checking === c.id} onClick={() => check(c)}>Test</Button>
-            <Button variant="ghost" size="sm" onClick={() => remove(c)} aria-label="Remove">
+            <Button variant="ghost" size="sm" onClick={() => remove(c)} aria-label="Remove connection">
               <Trash2 className="size-4" />
             </Button>
           </Card>

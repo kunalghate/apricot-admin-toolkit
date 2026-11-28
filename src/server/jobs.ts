@@ -60,8 +60,7 @@ function classify(err: unknown): { systemic: boolean; message: string; rejectedT
     return { systemic, message: err.message, rejectedType: /file type/i.test(err.detail) };
   }
   if (err instanceof FileError) {
-    const systemic = /didn't answer|refused|connection failed|couldn't find a server|took too long|password .* missing|no longer saved/i.test(err.message);
-    return { systemic, message: err.message };
+    return { systemic: err.code === "unreachable" || err.code === "missing_secret", message: err.message };
   }
   return { systemic: true, message: err instanceof Error ? err.message : String(err) };
 }
@@ -212,7 +211,7 @@ class Job {
   /** Put problem files back in the queue and run them again. */
   async retryProblems() {
     for (const [n, r] of this.results) {
-      if (r.status === "failed" || r.status === "not_verified" || (r.status === "skipped" && r.message?.startsWith("Apricot rejected"))) {
+      if (r.status === "failed" || r.status === "not_verified" || (r.status === "skipped" && (r.code === "rejected_type" || r.message?.startsWith("Apricot rejected")))) {
         this.results.delete(n);
       }
     }
@@ -303,7 +302,7 @@ class Job {
       // Items were pushed back and the queue ran dry while they waited.
       this.meta.state = "paused";
       this.meta.pausedReason = "error";
-      this.meta.pauseMessage ??= "Some files couldn't be processed yet. Resume to try them again.";
+      this.meta.pauseMessage ??= "The toolkit did not complete some files. Continue the upload to do these files again.";
       this.saveMeta();
     }
   }
@@ -321,25 +320,25 @@ class Job {
 
   private async process(item: JobItem): Promise<ItemResult> {
     const at = () => new Date().toISOString();
-    const done = (status: ItemStatus, message?: string, file?: AttachedFile): ItemResult => ({ n: item.n, status, message, file, at: at() });
+    const done = (status: ItemStatus, message?: string, file?: AttachedFile, code?: ItemResult["code"]): ItemResult => ({ n: item.n, status, message, code, file, at: at() });
     const field = this.spec.fields.find((f) => f.id === item.fieldId);
     const ext = fileExtension(item.name);
 
-    if (ext && this.rejectedExts.has(ext)) return done("skipped", `Apricot rejected .${ext} files earlier in this run, so this one was skipped.`);
-    if (fileTypeRisk(item.name) === "blocked") return done("failed", "Program files like this can't be attached.");
-    if (field?.imageOnly && !isImageFile(item.name)) return done("failed", "This is an Image field, so only pictures can go in it.");
-    if (item.size != null && item.size > MAX_UPLOAD_BYTES) return done("failed", "This file is over the 10 MB limit.");
+    if (ext && this.rejectedExts.has(ext)) return done("skipped", `Apricot did not accept .${ext} files before in this upload. The toolkit did not upload this file.`, undefined, "rejected_type");
+    if (fileTypeRisk(item.name) === "blocked") return done("failed", "The toolkit does not attach program files, for example .exe files.");
+    if (field?.imageOnly && !isImageFile(item.name)) return done("failed", "This is an image field. It accepts only pictures.");
+    if (item.size != null && item.size > MAX_UPLOAD_BYTES) return done("failed", "This file is larger than the 10 MB limit.");
 
     const c = await clientFor(this.spec.connectionId);
 
     // 1. Look at the record as it is right now.
     const rec = await c.getRecord(item.recordId);
-    if (!rec) return done("failed", "The record no longer exists, or this Apricot user can't see it.");
-    if (Number(rec.attributes.form_id) !== this.spec.formId) return done("failed", "This record belongs to a different form.");
+    if (!rec) return done("failed", "The record does not exist now, or this Apricot user cannot see it.");
+    if (Number(rec.attributes.form_id) !== this.spec.formId) return done("failed", "This record is on a different form.");
     const existing = attachedFile(rec.attributes, item.fieldId);
-    if (existing && sameFile(existing, item.name, item.size)) return done("already", "This file was already attached.", existing);
+    if (existing && sameFile(existing, item.name, item.size)) return done("already", "The record already has this file.", existing);
     if (existing && !this.spec.replaceExisting)
-      return done("skipped", `The record already has "${existing.filename}". Skipped so it isn't replaced.`, existing);
+      return done("skipped", `The record already has "${existing.filename}". The toolkit did not replace it.`, existing);
 
     // 2. Get the file.
     let blob: Blob;
@@ -354,7 +353,7 @@ class Job {
       if (k.systemic) throw new Systemic(k.message);
       return done("failed", k.message);
     }
-    if (blob.size > MAX_UPLOAD_BYTES) return done("failed", "This file is over the 10 MB limit.");
+    if (blob.size > MAX_UPLOAD_BYTES) return done("failed", "This file is larger than the 10 MB limit.");
     if (blob.size === 0) return done("failed", "This file is empty (0 bytes).");
 
     // 3. Upload.
@@ -369,9 +368,9 @@ class Job {
 
     // 4. Read it back to prove it's there.
     const after = attachedFile((await c.getRecord(item.recordId))?.attributes, item.fieldId);
-    if (!after) return done("not_verified", "Apricot said the upload worked, but the file isn't showing on the record.");
+    if (!after) return done("not_verified", "Apricot accepted the upload, but the file is not on the record.");
     if (simplify(after.filename) === simplify(name) || (after.size != null && after.size === blob.size)) return done("verified", undefined, after);
-    return done("not_verified", `Apricot said the upload worked, but the record shows "${after.filename}" instead.`, after);
+    return done("not_verified", `Apricot accepted the upload, but the record shows "${after.filename}".`, after);
   }
 }
 
@@ -410,7 +409,7 @@ export function loadJobs() {
       }
       jobs.set(id, job);
     } catch (err) {
-      console.warn(`  Couldn't read saved run ${id}:`, err);
+      console.warn(`  The toolkit cannot read the saved upload ${id}:`, err);
     }
   }
   const keep = new Set([...jobs.values()].filter((j) => j.meta.state !== "done").flatMap((j) => stagesOf(j.spec)));
@@ -421,8 +420,8 @@ export function loadJobs() {
 
 export function createJob(spec: JobSpec): JobSummary {
   const conn = getConnection(spec.connectionId);
-  if (!conn) throw new FileError("That connection no longer exists.");
-  if (spec.items.length === 0) throw new FileError("There's nothing to upload.");
+  if (!conn) throw new FileError("This connection does not exist now.");
+  if (spec.items.length === 0) throw new FileError("There are no files to upload.");
   const id = `${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 8)}`;
   const meta: Meta = {
     id,
@@ -451,7 +450,7 @@ export function listJobs(): JobSummary[] {
 export function deleteJob(id: string) {
   const job = jobs.get(id);
   if (!job) return;
-  if (job.meta.state === "running") throw new FileError("Pause the run before removing it.");
+  if (job.meta.state === "running") throw new FileError("Stop the upload before you remove it.");
   jobs.delete(id);
   for (const id of stagesOf(job.spec)) {
     try {

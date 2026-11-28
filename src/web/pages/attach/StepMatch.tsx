@@ -155,7 +155,7 @@ export function StepMatch({
       if (missing >= 0) {
         const id = idents[missing]!;
         const where = sheet ? "spreadsheet" : "file name";
-        const msg = k.raw[missing] == null ? `No ${id.label} in the ${where}` : `"${k.raw[missing]}" isn't a valid ${id.kind === "date" ? "date" : id.label}`;
+        const msg = k.raw[missing] == null ? `The ${where} has no ${id.label}` : `"${k.raw[missing]}" is not a correct ${id.kind === "date" ? "date" : id.label}`;
         return { key: null, lookup: "no_key", lookupMessage: msg, record: null };
       }
       const values = k.norm as string[];
@@ -205,12 +205,12 @@ export function StepMatch({
     <div className="space-y-6">
       {/* 1. What identifies a record */}
       <Card className="p-6">
-        <Label hint="This is how each file gets linked to the right record.">How should records be identified?</Label>
+        <Label hint="The toolkit uses this to attach each file to the correct record.">How does the toolkit find each record?</Label>
         <div className="grid sm:grid-cols-2 gap-2 max-w-2xl mt-2">
           {(
             [
-              { id: "record_id", icon: Hash, title: "Apricot record ID", desc: "The number Apricot gives each record" },
-              { id: "fields", icon: Layers, title: "Fields on this form", desc: "One field, or several together (e.g. last name + date of birth)" },
+              { id: "record_id", icon: Hash, title: "Apricot record ID", desc: "The number that Apricot gives to each record" },
+              { id: "fields", icon: Layers, title: "Fields on this form", desc: "One field, or more fields together (for example, last name and date of birth)" },
             ] as const
           ).map((o) => (
             <button
@@ -228,11 +228,11 @@ export function StepMatch({
         {mode === "fields" && (
           <div className="mt-6">
             <div className="text-sm font-medium text-stone-800">
-              Which fields? <span className="font-normal text-stone-500">Pick more than one if a single field isn't unique on its own.</span>
+              Which fields? <span className="font-normal text-stone-500">If one field is not unique, select more fields.</span>
             </div>
             {options.length === 0 ? (
               <div className="mt-3">
-                <Callout tone="amber">This form has no text, number, date or name fields to match on. Use the record ID instead.</Callout>
+                <Callout tone="amber">This form has no text, number, date, or name fields that the toolkit can use. Use the record ID.</Callout>
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -262,7 +262,7 @@ export function StepMatch({
             )}
             {picked.length > 1 && (
               <p className="text-sm text-stone-600 mt-3">
-                A record matches only when <strong>all {picked.length}</strong> agree: {combinedLabel}.
+                A record is a match only when <strong>all {picked.length}</strong> values are the same: {combinedLabel}.
               </p>
             )}
           </div>
@@ -291,10 +291,10 @@ export function StepMatch({
             </>
           ) : (
             <>
-              <Label>Where in the file names?</Label>
+              <Label>Where in the file names are the values?</Label>
               {source.files[0] && (
                 <div className="text-sm text-stone-600 leading-7">
-                  File names are split into parts at underscores and spaces. For example, <span className="font-mono text-stone-800">{source.files[0].name}</span> becomes{" "}
+                  The toolkit divides each file name into parts at underscores and spaces. For example, <span className="font-mono text-stone-800">{source.files[0].name}</span> has these parts:{" "}
                   {partsSample.map((p, i) => (
                     <span key={i} className="inline-flex items-center gap-1 mr-1 rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-xs text-stone-800">
                       <span className="text-stone-400">{i + 1}</span>
@@ -309,11 +309,11 @@ export function StepMatch({
                     <div className="text-xs text-stone-500 mb-1">{id.label}</div>
                     <Select value={sourceId(sources[i] ?? { type: "whole" })} onChange={(e) => setSources(idents.map((_, j) => (j === i ? parseSourceId(e.target.value) : (sources[j] ?? { type: "whole" }))))}>
                       {Array.from({ length: maxParts }, (_, p) => (
-                        <option key={p} value={`part:${p}`}>Part {p + 1}{partsSample[p] ? ` (e.g. "${partsSample[p]}")` : ""}</option>
+                        <option key={p} value={`part:${p}`}>Part {p + 1}{partsSample[p] ? ` (for example, "${partsSample[p]}")` : ""}</option>
                       ))}
                       <option value="number">The first number in the name</option>
                       <option value="whole">The whole file name</option>
-                      <option value="folder">The name of the folder it's in</option>
+                      <option value="folder">The name of the folder that has the file</option>
                     </Select>
                   </div>
                 ))}
@@ -324,24 +324,24 @@ export function StepMatch({
         </Card>
       )}
 
-      {error && <Callout tone="red" title="Couldn't look up records">{error}</Callout>}
+      {error && <Callout tone="red" title="The toolkit cannot find the records">{error}</Callout>}
 
       <Card className="p-5 flex items-center gap-4">
         <div className="flex-1">
           {busy ? (
             <div className="space-y-2">
               <div className="text-sm text-stone-600 flex justify-between">
-                <span>Looking up records in Apricot… {progress.done.toLocaleString()} of {progress.total.toLocaleString()}</span>
-                {eta != null && eta > 5 && <span className="text-stone-400">about {formatDuration(eta)} left</span>}
+                <span>Search for records in progress: {progress.done.toLocaleString()} of {progress.total.toLocaleString()}</span>
+                {eta != null && eta > 5 && <span className="text-stone-400">Time to completion: approximately {formatDuration(eta)}</span>}
               </div>
               <Progress value={progress.total ? (progress.done / progress.total) * 100 : 100} />
             </div>
           ) : idents.length === 0 ? (
-            <div className="text-sm text-stone-500">Choose at least one field above.</div>
+            <div className="text-sm text-stone-500">Select one or more fields above.</div>
           ) : (
             <div className="text-sm text-stone-600">
-              <strong className="text-stone-900">{complete.toLocaleString()}</strong> of {total.toLocaleString()} {sheet ? "rows" : "files"} have a usable {combinedLabel}.
-              {complete < total && " You can match the rest by hand on the next screen."}
+              <strong className="text-stone-900">{complete.toLocaleString()}</strong> of {total.toLocaleString()} {sheet ? "rows" : "files"} have a correct {combinedLabel}.
+              {complete < total && " On the next screen, you can enter the record for the other files."}
             </div>
           )}
         </div>
@@ -353,11 +353,11 @@ export function StepMatch({
 }
 
 export function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.max(1, Math.round(seconds))} sec`;
+  if (seconds < 60) return `${Math.max(1, Math.round(seconds))} seconds`;
   const m = Math.round(seconds / 60);
-  if (m < 60) return `${m} min`;
+  if (m < 60) return `${m} ${m === 1 ? "minute" : "minutes"}`;
   const h = Math.floor(m / 60);
-  return `${h} hr ${m % 60} min`;
+  return `${h} ${h === 1 ? "hour" : "hours"} ${m % 60} minutes`;
 }
 
 function Preview({ rows, idents }: { rows: ({ id: string; label: string; title: string } & Keyed)[]; idents: Ident[] }) {
@@ -377,10 +377,10 @@ function Preview({ rows, idents }: { rows: ({ id: string; label: string; title: 
             norm[i] != null ? (
               <span key={ident.key} className="font-mono text-stone-900 truncate" title={raw[i] ?? ""}>
                 {norm[i]}
-                {raw[i]?.trim() !== norm[i] && <span className="text-stone-400 font-sans text-xs"> (from "{raw[i]}")</span>}
+                {raw[i]?.trim() !== norm[i] && <span className="text-stone-400 font-sans text-xs"> (changed from "{raw[i]}")</span>}
               </span>
             ) : (
-              <span key={ident.key} className="text-amber-700 truncate">{raw[i] == null ? "Empty" : `"${raw[i]}" isn't valid`}</span>
+              <span key={ident.key} className="text-amber-700 truncate">{raw[i] == null ? "Empty" : `"${raw[i]}" is not correct`}</span>
             ),
           )}
         </div>

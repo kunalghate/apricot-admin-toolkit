@@ -107,32 +107,32 @@ export function StepStart({
             <Upload className="size-6" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-lg font-semibold text-stone-900">Attach {plural(planned.length, "file")} on {target.form.name}</div>
+            <div className="text-lg font-semibold text-stone-900">Attach {plural(planned.length, "file")} to records on {target.form.name}</div>
             <div className="text-sm text-stone-500 mt-1">
-              Into {new Intl.ListFormat("en", { type: "conjunction" }).format(fields.map((f) => `"${f.label}"`))} · from {[...new Set(locations.map((l) => l.label))].join(" and ")} · {connection.name}
-              {replacing > 0 && ` · ${plural(replacing, "existing file")} will be replaced`}
+              Into the fields {new Intl.ListFormat("en", { type: "conjunction" }).format(fields.map((f) => `"${f.label}"`))} · from {[...new Set(locations.map((l) => l.label))].join(" and ")} · {connection.name}
+              {replacing > 0 && ` · the toolkit replaces ${plural(replacing, "file")} on records`}
             </div>
           </div>
         </div>
 
         <div className="mt-6 space-y-4">
-          <Callout tone="neutral" icon={<MonitorCheck className="size-4" />} title="This keeps going without you">
-            The upload runs inside the toolkit, not this page, so you can close the page or keep working. Just leave the Apricot Admin
-            Toolkit window open (you can minimize it). Your computer won't go to sleep while it runs, and if anything interrupts it, it picks
-            up where it left off. Each file is checked on the record afterwards.
+          <Callout tone="neutral" icon={<MonitorCheck className="size-4" />} title="The upload continues when you close this page">
+            The toolkit does the upload, not this page. You can close this page or do other work. Do not close the toolkit window. You can
+            minimize it. During the upload, your computer does not go to sleep. If the upload stops, it continues from the last file. The
+            toolkit verifies each file on the record after the upload.
           </Callout>
           {isProd && (
             <label className="flex items-start gap-3 rounded-xl bg-red-50 ring-1 ring-red-200 p-4 cursor-pointer">
               <input type="checkbox" className="accent-red-600 mt-0.5 size-4" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
               <span className="text-sm text-red-900">
-                I understand this will change <strong>{plural(new Set(planned.map((r) => r.record!.id)).size, "record")} in Production</strong>
-                {replacing > 0 && <> and replace {plural(replacing, "existing file")}, which can't be undone</>}.
+                I understand that this changes <strong>{plural(new Set(planned.map((r) => r.record!.id)).size, "record")} in Production</strong>
+                {replacing > 0 && <> and replaces {plural(replacing, "file")} on records. I cannot undo this</>}.
               </span>
             </label>
           )}
           {preparing && (
             <div className="space-y-2">
-              <div className="text-sm text-stone-600">Getting the files ready… {preparing.done.toLocaleString()} of {preparing.total.toLocaleString()}</div>
+              <div className="text-sm text-stone-600">Preparation of the files in progress: {preparing.done.toLocaleString()} of {preparing.total.toLocaleString()}</div>
               <Progress value={(preparing.done / Math.max(1, preparing.total)) * 100} />
             </div>
           )}
@@ -140,11 +140,11 @@ export function StepStart({
           <div className="flex flex-wrap gap-3">
             {planned.length > TRIAL && (
               <Button variant="secondary" size="lg" icon={<FlaskConical className="size-4" />} disabled={!confirmed || busy} onClick={() => start(true)}>
-                Try {TRIAL} first
+                Upload {TRIAL} files as a test
               </Button>
             )}
             <Button size="lg" icon={<Upload className="size-4" />} disabled={!confirmed} loading={busy} onClick={() => start(false)}>
-              {planned.length === 1 ? "Upload 1 file" : `Upload all ${planned.length.toLocaleString()}`}
+              {planned.length === 1 ? "Upload 1 file" : `Upload all ${planned.length.toLocaleString()} files`}
             </Button>
           </div>
         </div>

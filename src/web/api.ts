@@ -15,10 +15,10 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   try {
     res = await fetch(path, init);
   } catch {
-    throw new Error("The toolkit isn't running. Start it again from your Start menu or Applications folder, then refresh this page.");
+    throw new Error("The toolkit does not answer. Start the toolkit from the Start menu or the Applications folder. Then refresh this page.");
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error((data as { error?: string }).error || `The request failed (error ${res.status}).`);
   return data as T;
 }
 
