@@ -66,7 +66,7 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
           <Input className="pl-9" placeholder="Find a form" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
         </div>
         {error && <Callout tone="red">{error}</Callout>}
-        {!forms && !error && <div className="p-3"><Spinner label="Getting the forms" /></div>}
+        {!forms && !error && <div className="p-3"><Spinner label="Loading forms…" /></div>}
         <div className="overflow-y-auto -mx-1 px-1 space-y-0.5">
           {tree.map(({ root, kids, dim }) => (
             <div key={root.id}>
@@ -113,7 +113,7 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
               <Callout tone="amber" title="This form has no file fields">
                 {multiFields.length > 0
                   ? "This form has only multi-file fields. The Apricot API cannot upload files to multi-file fields."
-                  : "Select a different form. Or, add a file field to this form in the Apricot Form Designer."}
+                  : "Select a different form, or add a file field to this form in the Apricot Form Designer."}
               </Callout>
             ) : (
               <div className="space-y-2">
@@ -140,7 +140,7 @@ export function StepForm({ connection, initial, onNext }: { connection: Connecti
                     <span className="size-4" />
                     <Paperclip className="size-4" />
                     <span className="flex-1 text-sm">{f.label}</span>
-                    <Badge>Multi-file field: the API cannot upload to it</Badge>
+                    <Badge>Multi-file field (not supported by the API)</Badge>
                   </div>
                 ))}
                 <p className="text-xs text-stone-500 pt-1">
@@ -188,7 +188,7 @@ function FormRow({
       <Icon className={cx("size-4 shrink-0", child ? "text-stone-300" : "text-stone-400")} />
       <span className={cx("flex-1 min-w-0 truncate", !child && "font-medium")}>{form.name}</span>
       {orphanParent ? (
-        <span title="This is a Tier 2 form. This Apricot user cannot see its Tier 1 form. The Tier 1 form can be inactive or restricted.">
+        <span title="A Tier 2 form whose Tier 1 form this Apricot user cannot see (it may be inactive or restricted).">
           <Badge>Tier 2</Badge>
         </span>
       ) : null}

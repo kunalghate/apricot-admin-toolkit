@@ -108,11 +108,11 @@ console.log(`
    ${APP_NAME}  ·  version ${VERSION}
   ${line}
 
-   The toolkit started. It opens in your web browser.
-   If it does not open, go to:   ${URL_TO_OPEN}
+   The toolkit is running and should open in your browser.
+   If it does not, go to:   ${URL_TO_OPEN}
 
-   Do not close this window while you work or while an upload
-   continues. You can minimize it. When you finish, close it.
+   Keep this window open while you work and while uploads run
+   (you can minimize it). Close it when you are done.
   ${line}
 `);
 if (isDev) console.log(`   (dev mode, data folder: ${dataDir()})\n`);

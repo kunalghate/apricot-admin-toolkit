@@ -205,12 +205,12 @@ export function StepMatch({
     <div className="space-y-6">
       {/* 1. What identifies a record */}
       <Card className="p-6">
-        <Label hint="The toolkit uses this to attach each file to the correct record.">How does the toolkit find each record?</Label>
+        <Label>Find records by</Label>
         <div className="grid sm:grid-cols-2 gap-2 max-w-2xl mt-2">
           {(
             [
-              { id: "record_id", icon: Hash, title: "Apricot record ID", desc: "The number that Apricot gives to each record" },
-              { id: "fields", icon: Layers, title: "Fields on this form", desc: "One field, or more fields together (for example, last name and date of birth)" },
+              { id: "record_id", icon: Hash, title: "Apricot record ID", desc: "The number Apricot gives each record" },
+              { id: "fields", icon: Layers, title: "Fields on this form", desc: "One or more fields, like last name and date of birth" },
             ] as const
           ).map((o) => (
             <button
@@ -291,7 +291,7 @@ export function StepMatch({
             </>
           ) : (
             <>
-              <Label>Where in the file names are the values?</Label>
+              <Label>Which part of the file name?</Label>
               {source.files[0] && (
                 <div className="text-sm text-stone-600 leading-7">
                   The toolkit divides each file name into parts at underscores and spaces. For example, <span className="font-mono text-stone-800">{source.files[0].name}</span> has these parts:{" "}
@@ -324,7 +324,7 @@ export function StepMatch({
         </Card>
       )}
 
-      {error && <Callout tone="red" title="The toolkit cannot find the records">{error}</Callout>}
+      {error && <Callout tone="red" title="Record search failed">{error}</Callout>}
 
       <Card className="p-5 flex items-center gap-4">
         <div className="flex-1">
@@ -380,7 +380,7 @@ function Preview({ rows, idents }: { rows: ({ id: string; label: string; title: 
                 {raw[i]?.trim() !== norm[i] && <span className="text-stone-400 font-sans text-xs"> (changed from "{raw[i]}")</span>}
               </span>
             ) : (
-              <span key={ident.key} className="text-amber-700 truncate">{raw[i] == null ? "Empty" : `"${raw[i]}" is not correct`}</span>
+              <span key={ident.key} className="text-amber-700 truncate">{raw[i] == null ? "Empty" : `"${raw[i]}" is not valid`}</span>
             ),
           )}
         </div>

@@ -92,7 +92,7 @@ export function StepReview({
       });
       downloadSheet(
         `${sheet.name.replace(/\.(xlsx|csv)$/i, "")} - examined ${stamp}.xlsx`,
-        [...sheet.header, "Status from the toolkit", "Details"],
+        [...sheet.header, "Status", "Details"],
         sheet.rows.map((cells, i) => {
           const s = byRow.get(i + 2) ?? [{ status: "No file", detail: "This row has no file." }];
           return [...sheet.header.map((_, c) => cells[c] ?? ""), s.map((x) => x.status).join("; "), s.map((x) => x.detail).join("; ")];
@@ -101,8 +101,8 @@ export function StepReview({
       );
     } else {
       downloadSheet(
-        `Attach files - examination - ${target.form.name} - ${stamp}.xlsx`,
-        ["File", "Path", "Value that the toolkit used to find the record", "Record ID", "Record", "Status", "Details"],
+        `Attach files - review - ${target.form.name} - ${stamp}.xlsx`,
+        ["File", "Path", "Matched on", "Record ID", "Record", "Status", "Details"],
         rows.map((r, i) => {
           const d = describe(r, states[i]!);
           return [r.file?.name ?? "", r.file?.path ?? "", r.key ?? "", r.record?.id ?? null, r.record?.label ?? "", d.status, d.detail];
@@ -113,27 +113,27 @@ export function StepReview({
   };
 
   const tabs: { id: Filter; label: string; n: number }[] = [
-    { id: "attention", label: "Problems", n: attention },
+    { id: "attention", label: "Needs attention", n: attention },
     { id: "ready", label: "Ready", n: ready },
-    { id: "existing", label: "Record has a file", n: existing },
+    { id: "existing", label: "Already have a file", n: existing },
     { id: "all", label: "All", n: rows.length },
   ];
 
   return (
     <div className="space-y-6">
       <div className="grid sm:grid-cols-3 gap-4">
-        <Summary tone="green" icon={<CheckCircle2 className="size-5" />} n={ready} label="files are ready to attach" />
-        <Summary tone="amber" icon={<RefreshCw className="size-5" />} n={existing} label="records have a file in the field" />
-        <Summary tone={attention ? "red" : "neutral"} icon={<CircleAlert className="size-5" />} n={attention} label="rows have a problem" />
+        <Summary tone="green" icon={<CheckCircle2 className="size-5" />} n={ready} label="ready to attach" />
+        <Summary tone="amber" icon={<RefreshCw className="size-5" />} n={existing} label="already have a file" />
+        <Summary tone={attention ? "red" : "neutral"} icon={<CircleAlert className="size-5" />} n={attention} label="need attention" />
       </div>
 
       {existing > 0 && (
         <Card className="p-5">
-          <div className="text-sm font-medium mb-3">Select what to do when a record has a file in the field:</div>
+          <div className="text-sm font-medium mb-3">If a record already has a file in that field:</div>
           <div className="grid sm:grid-cols-2 gap-2">
             {[
-              { v: false, title: "Keep the file on the record (recommended)", desc: "The toolkit does not upload the new file. No file is lost." },
-              { v: true, title: "Replace the file on the record", desc: "The toolkit uploads the new file. You cannot get the old file back." },
+              { v: false, title: "Keep it (recommended)", desc: "Skip the new file. Nothing is lost." },
+              { v: true, title: "Replace it", desc: "Upload the new file. The old one cannot be restored." },
             ].map((o) => (
               <label key={String(o.v)} className={cx("flex gap-3 rounded-xl p-3 ring-1 cursor-pointer transition", replaceExisting === o.v ? "ring-2 ring-brand-700 bg-brand-50" : "ring-stone-200 hover:ring-stone-300")}>
                 <input type="radio" className="accent-brand-800 mt-1" checked={replaceExisting === o.v} onChange={() => setReplaceExisting(o.v)} />
@@ -166,16 +166,16 @@ export function StepReview({
           <div className="ml-auto flex items-center gap-2 pb-2">
             <div className="relative">
               <Search className="size-4 text-stone-400 absolute left-2.5 top-2" />
-              <Input className="h-8 w-56 pl-8" placeholder={source.sheet ? "Search, or type a row number" : "Search"} value={query} onChange={(e) => { setQuery(e.target.value); setShown(PAGE); }} />
+              <Input className="h-8 w-56 pl-8" placeholder={source.sheet ? "Search or enter a row number" : "Search"} value={query} onChange={(e) => { setQuery(e.target.value); setShown(PAGE); }} />
             </div>
-            <Button variant="secondary" size="sm" icon={<Download className="size-3.5" />} onClick={downloadList} title="Download all rows with their status. Correct the problems in Excel.">
+            <Button variant="secondary" size="sm" icon={<Download className="size-3.5" />} onClick={downloadList} title="Download every row with its status, to fix problems in Excel">
               Download this list
             </Button>
           </div>
         </div>
         <div className="max-h-[520px] overflow-y-auto divide-y divide-stone-100">
           {visible.length === 0 && (
-            <div className="p-10 text-center text-sm text-stone-500">{query ? "No row agrees with your search." : filter === "attention" ? "No rows have a problem." : "There are no rows here."}</div>
+            <div className="p-10 text-center text-sm text-stone-500">{query ? "No rows match your search." : filter === "attention" ? "Nothing needs attention." : "Nothing here."}</div>
           )}
           {visible.slice(0, shown).map(({ r, s }) => (
             <ReviewRow key={r.id} row={r} state={s} connection={connection} target={target} fieldLabel={multiField ? fieldLabel.get(r.fieldId) : undefined} update={update} />
@@ -192,7 +192,7 @@ export function StepReview({
 
       {attention > 0 && ready > 0 && (
         <Callout tone="neutral">
-          You can continue now. The toolkit does not upload rows that have a problem. {source.sheet ? "If there are many problems, download the list. Correct the spreadsheet, then start again." : ""}
+          You can continue now. Rows that need attention are skipped. {source.sheet ? "If there are many, download the list, fix the spreadsheet, and start again." : ""}
         </Callout>
       )}
 
@@ -292,7 +292,7 @@ function ReviewRow({
       {state === "file_missing" && <div className="mt-1 ml-[60px] text-xs text-red-700">{copy.help}</div>}
       {state === "file_ambiguous" && row.fileCandidates && (
         <div className="mt-2 ml-[60px] space-y-1">
-          <div className="text-xs text-stone-500">Select the file that the spreadsheet refers to:</div>
+          <div className="text-xs text-stone-500">Which file does the spreadsheet mean?</div>
           <div className="flex flex-wrap gap-2">
             {row.fileCandidates.map((f) => (
               <Button key={f.id} variant="secondary" size="sm" className="font-mono text-xs" onClick={() => update(row.id, { file: f, fileIssue: undefined })}>

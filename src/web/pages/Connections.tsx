@@ -30,7 +30,7 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
     <Card className="p-6">
       <form onSubmit={submit} className="space-y-5">
         <div>
-          <Label>Select the Apricot environment</Label>
+          <Label>Environment</Label>
           <div className="grid grid-cols-2 gap-2">
             {(["sandbox", "production"] as const).map((env) => (
               <button
@@ -44,7 +44,7 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
               >
                 <div className="font-medium text-sm">{env === "sandbox" ? "Sandbox" : "Production"}</div>
                 <div className="text-xs text-stone-500 mt-0.5">
-                  {env === "sandbox" ? "A test copy of your data. Changes do not affect real records." : "Your real data. All changes affect real records."}
+                  {env === "sandbox" ? "A test copy. Safe to experiment." : "Your live data. Changes affect real records."}
                 </div>
               </button>
             ))}
@@ -52,7 +52,7 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
         </div>
 
         <div>
-          <Label htmlFor="cname" hint="Optional. Use a name that helps you identify this connection.">Name</Label>
+          <Label htmlFor="cname" hint="Optional, so you can tell connections apart">Name</Label>
           <Input id="cname" placeholder={environment === "sandbox" ? "For example: Sandbox" : "For example: Main office"} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
@@ -64,11 +64,11 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
           <Input id="csecret" type="password" autoComplete="off" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} required />
         </div>
 
-        {error && <Callout tone="red" title="The connection failed">{error}</Callout>}
+        {error && <Callout tone="red" title="Could not connect">{error}</Callout>}
 
         <div className="flex items-center gap-3">
           <Button type="submit" size="lg" loading={busy} icon={<KeyRound className="size-4" />} className="flex-1">
-            {busy ? "Test in progress" : "Connect"}
+            {busy ? "Connecting…" : "Connect"}
           </Button>
           {onCancel && (
             <Button type="button" variant="ghost" size="lg" onClick={onCancel}>
@@ -78,7 +78,7 @@ export function ConnectForm({ onConnected, onCancel }: { onConnected: (c: Connec
         </div>
         <p className="flex items-start gap-2 text-xs text-stone-500">
           <Lock className="size-3.5 mt-0.5 shrink-0" />
-          The toolkit keeps your secret in the secure credential store of this computer ({navigator.userAgent.includes("Windows") ? "Windows Credential Manager" : "Keychain"}).
+          Your secret is kept in your computer's secure credential store ({navigator.userAgent.includes("Windows") ? "Windows Credential Manager" : "Keychain"}).
           The toolkit sends the secret only to Apricot, to sign in.
         </p>
         <p className="text-xs text-stone-500">
@@ -126,7 +126,7 @@ export function ConnectionsPage({
     <div className="animate-fade-up">
       <PageHeader
         title="Connections"
-        subtitle="The Apricot organizations that the toolkit can connect to."
+        subtitle="The Apricot organizations you work with."
         actions={!adding && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add connection</Button>}
       />
 

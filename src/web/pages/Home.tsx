@@ -7,10 +7,10 @@ export function HomePage({ go, connection, runs }: { go: (r: string) => void; co
   const needsYou = runs.filter((r) => r.state === "running" || r.state === "interrupted" || r.state === "paused");
   return (
     <div className="animate-fade-up">
-      <PageHeader title="Select a task" subtitle={`Connection: ${connection.name}`} />
+      <PageHeader title="What would you like to do?" subtitle={`Connected to ${connection.name}`} />
       {needsYou.length > 0 && (
         <div className="mb-8 space-y-3">
-          <div className="text-sm font-medium text-stone-700">{needsYou.some((r) => r.state === "running") ? "In progress" : "These uploads need your action"}</div>
+          <div className="text-sm font-medium text-stone-700">{needsYou.some((r) => r.state === "running") ? "In progress" : "Waiting for you"}</div>
           {needsYou.slice(0, 3).map((r) => <RunCard key={r.id} run={r} onOpen={() => go(`runs/${r.id}`)} />)}
         </div>
       )}
@@ -34,7 +34,7 @@ export function HomePage({ go, connection, runs }: { go: (r: string) => void; co
             <FilePlus2 className="size-5" />
           </div>
           <div className="font-semibold text-stone-900 flex items-center gap-2">
-            Make new records with files <Badge>Not available yet</Badge>
+            Create records with files <Badge>Coming soon</Badge>
           </div>
           <p className="text-sm text-stone-500 mt-1.5 leading-relaxed">
             Make new records from a spreadsheet, and attach their files.

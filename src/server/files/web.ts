@@ -27,9 +27,9 @@ export async function readWeb(link: string): Promise<{ blob: Blob; name: string 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(120_000) });
-      if (res.status === 404) throw new FileError("The web link shows that the file does not exist (404).", "not_found");
+      if (res.status === 404) throw new FileError("The link says the file does not exist (404).", "not_found");
       if (res.status === 401 || res.status === 403)
-        throw new FileError("The web link needs a sign-in, or it is not valid now. The toolkit cannot download the file.", "auth");
+        throw new FileError("The link needs a sign-in or has expired, so the file could not be downloaded.", "auth");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const len = Number(res.headers.get("content-length") ?? 0);
       if (len > MAX_UPLOAD_BYTES) throw new FileError("This file is larger than the 10 MB limit.", "too_large");
@@ -38,7 +38,7 @@ export async function readWeb(link: string): Promise<{ blob: Blob; name: string 
       if (buf.byteLength > MAX_UPLOAD_BYTES) throw new FileError("This file is larger than the 10 MB limit.", "too_large");
       // A sign-in page instead of the file (common with SharePoint/Drive links).
       if (/text\/html/i.test(type) && !/\.html?$/i.test(url.pathname))
-        throw new FileError("The web link opens a web page, not a file. Make sure that the link downloads the file directly and does not need a sign-in.");
+        throw new FileError("The link opens a web page instead of a file. It may need a sign-in, or it is not a direct download link.");
       return { blob: new Blob([buf], { type }), name: nameFor(url, res) };
     } catch (err) {
       if (err instanceof FileError) throw err;
@@ -46,5 +46,5 @@ export async function readWeb(link: string): Promise<{ blob: Blob; name: string 
       await Bun.sleep(1000 * 2 ** attempt);
     }
   }
-  throw new FileError(`The toolkit cannot download the file from the web link (${lastErr instanceof Error ? lastErr.message : String(lastErr)}).`);
+  throw new FileError(`Could not download the file from the link (${lastErr instanceof Error ? lastErr.message : String(lastErr)}).`);
 }

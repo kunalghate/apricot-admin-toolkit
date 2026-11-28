@@ -96,7 +96,7 @@ export function App() {
     );
   }
 
-  if (!connections) return <div className="h-full grid place-items-center"><Spinner label="Wait while the toolkit starts." /></div>;
+  if (!connections) return <div className="h-full grid place-items-center"><Spinner label="Starting…" /></div>;
 
   // First run: nothing to do until we're connected.
   if (connections.length === 0) {
@@ -106,7 +106,7 @@ export function App() {
           <div className="text-center mb-8">
             <BonterraLogo className="h-9 mx-auto mb-8 text-brand-900" />
             <h1 className="text-3xl font-semibold tracking-tight text-brand-900">Apricot Admin Toolkit</h1>
-            <p className="mt-2 text-stone-500">Connect the toolkit to your Apricot organization to start.</p>
+            <p className="mt-2 text-stone-500">Connect to your Apricot organization to get started.</p>
           </div>
           <ConnectForm
             onConnected={async (c) => {
@@ -185,7 +185,7 @@ export function App() {
       <main className="flex-1 min-w-0 overflow-y-auto">
         {active.environment === "production" && (
           <div className="sticky top-0 z-10 bg-red-600 text-white text-sm text-center py-1.5">
-            You are connected to <strong>Production</strong>. All changes affect real records.
+            You are working in <strong>Production</strong>. Changes affect real records.
           </div>
         )}
         <div className="max-w-5xl mx-auto px-8 py-10">

@@ -20,23 +20,23 @@ export class ApricotError extends Error {
 export function friendlyMessage(status: number, detail: string): string {
   const d = detail || "";
   if (/Unknown file type/i.test(d))
-    return "Apricot does not know this file type. Or, the file extension is not correct for the file contents.";
+    return "Apricot does not recognise this file type, or the file extension does not match its contents.";
   const notAllowed = d.match(/File type (\S+) not allowed/i);
   if (notAllowed) return `Your Apricot organization does not accept this type of file (${notAllowed[1]}).`;
   if (/attachment is requi/i.test(d))
     return "A required file field on this record is empty. Apricot does not accept uploads to this record until that field has a file.";
-  if (/Field is locked/i.test(d)) return "Apricot stopped the change. A locked field on this record has a value.";
-  if (/Field is hidden/i.test(d)) return "Apricot stopped the change because of a hidden field on this record.";
+  if (/Field is locked/i.test(d)) return "Apricot blocked the change because a locked field on this record has a value.";
+  if (/Field is hidden/i.test(d)) return "Apricot blocked the change because of a hidden field on this record.";
   if (/Invalid Parent ID/i.test(d)) return "Apricot cannot find the parent record of this record.";
-  if (status === 401) return "Apricot did not accept these credentials. Make sure that the Client ID and the Client Secret are correct.";
+  if (status === 401) return "Apricot did not accept these credentials. Check the Client ID and Client Secret.";
   if (status === 403)
-    return "The Apricot user of these credentials does not have permission for this. Make sure that this user has access in Apricot.";
-  if (status === 404) return "Apricot cannot find this item, or the Apricot user of these credentials cannot see it.";
+    return "The Apricot user behind these credentials does not have permission for this. Check their access in Apricot.";
+  if (status === 404) return "Not found, or the Apricot user behind these credentials cannot see it.";
   if (status === 413) return "This file is larger than the 10 MB upload limit of the Apricot API.";
-  if (status === 429) return "Apricot received too many requests in a short time. Wait some minutes, then do the step again.";
-  if (status === 504 || status === 502 || status === 503) return "Apricot did not reply in the usual time. Wait some minutes, then do the step again.";
-  if (status === 0) return "The toolkit cannot connect to Apricot. Make sure that this computer is connected to the internet.";
-  return d ? `Message from Apricot: ${d}` : `Apricot sent an error that the toolkit does not know (status ${status}).`;
+  if (status === 429) return "Apricot is receiving too many requests. Wait a few minutes and try again.";
+  if (status === 504 || status === 502 || status === 503) return "Apricot is taking too long to respond. Wait a few minutes and try again.";
+  if (status === 0) return "Cannot reach Apricot. Check your internet connection.";
+  return d ? `Message from Apricot: ${d}` : `Apricot returned an unexpected error (${status}).`;
 }
 
 async function readError(res: Response): Promise<string> {

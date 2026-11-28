@@ -70,7 +70,7 @@ export function LocationPicker({ onPicked, intro }: { onPicked: (p: PickedFiles)
   const tabs = [
     { id: "computer" as const, icon: Monitor, label: "This computer", desc: "Folders, network drives, SharePoint, zip files" },
     { id: "server" as const, icon: Server, label: "File server", desc: "SFTP or FTP" },
-    { id: "drop" as const, icon: Upload, label: "Drag and drop", desc: "Best for a small number of files" },
+    { id: "drop" as const, icon: Upload, label: "Drag and drop", desc: "Quickest for a few hundred files" },
   ];
 
   return (
@@ -102,7 +102,7 @@ export function LocationPicker({ onPicked, intro }: { onPicked: (p: PickedFiles)
         />
       )}
       {tab === "server" && <ServerPanel onUseFolder={(s, dir) => scan({ kind: "server", serverId: s.id, root: dir }, `${s.name}: ${dir}`)} />}
-      {tab === "drop" && <DropPanel onDropped={(files) => onPicked({ location: { kind: "dropped", stageId: crypto.randomUUID() }, label: "Files that you dragged here", files, truncated: false })} />}
+      {tab === "drop" && <DropPanel onDropped={(files) => onPicked({ location: { kind: "dropped", stageId: crypto.randomUUID() }, label: "Files you dropped", files, truncated: false })} />}
     </div>
   );
 }
@@ -153,7 +153,7 @@ function ComputerBrowser({ onUseFolder, onUseZip }: { onUseFolder: (dir: string)
             onUseFolder(dir);
           }}
           onUseZip={onUseZip}
-          footerHint="You can use network drives and synced SharePoint or OneDrive folders. For SharePoint, open the library in your browser. Then click Sync."
+          footerHint="Network drives and synced SharePoint or OneDrive folders work too. For SharePoint, open the library in your browser and click Sync."
         />
       </div>
     </Card>
@@ -229,11 +229,11 @@ function FolderBrowser({
             open(path);
           }}
         >
-          <Input className="h-8 font-mono text-xs" value={path} onChange={(e) => setPath(e.target.value)} placeholder={serverId ? "/folder" : "Paste a folder path, and press Enter"} spellCheck={false} />
+          <Input className="h-8 font-mono text-xs" value={path} onChange={(e) => setPath(e.target.value)} placeholder={serverId ? "/folder" : "Paste a folder path and press Enter"} spellCheck={false} />
         </form>
       </div>
       <div className="flex-1 overflow-y-auto max-h-[300px] p-1.5">
-        {loading && <div className="p-4"><Spinner label="Wait." /></div>}
+        {loading && <div className="p-4"><Spinner label="Opening…" /></div>}
         {!loading && error && <div className="p-3"><Callout tone="red">{error}</Callout></div>}
         {!loading && !error && view && (
           <>
@@ -262,7 +262,7 @@ function FolderBrowser({
             {view.entries.length === 0 && <div className="p-6 text-center text-sm text-stone-400">This folder is empty.</div>}
           </>
         )}
-        {!loading && !error && !view && <div className="p-6 text-center text-sm text-stone-400">Select a location on the left. Or paste a folder path above.</div>}
+        {!loading && !error && !view && <div className="p-6 text-center text-sm text-stone-400">Select a place on the left, or paste a folder path above.</div>}
       </div>
       <div className="p-3 border-t border-stone-100 flex items-center gap-3">
         <p className="flex-1 text-xs text-stone-500 leading-relaxed">{footerHint}</p>
@@ -336,7 +336,7 @@ function ServerPanel({ onUseFolder }: { onUseFolder: (s: FileServer, dir: string
           <FolderBrowser key={active.id} serverId={active.id} initialDir={safeGet(`aat.serverDir.${active.id}`) || ""} onUse={(dir) => {
             safeSet(`aat.serverDir.${active.id}`, dir);
             onUseFolder(active, dir);
-          }} footerHint="The toolkit downloads each file during the upload. The toolkit does not keep the files on this computer." />
+          }} footerHint="Files are downloaded one at a time during the upload. Nothing is kept on this computer." />
         ) : (
           <div className="grid place-items-center text-sm text-stone-400 p-10">Select a file server on the left.</div>
         )}
@@ -400,7 +400,7 @@ function AddServer({ onAdded, onCancel, canCancel }: { onAdded: (s: FileServer) 
     <Card className="p-6 space-y-5">
       <div>
         <div className="font-medium text-stone-900">Add a file server</div>
-        <p className="text-sm text-stone-500 mt-0.5">Get these details from the person who sent the files. The toolkit keeps the password in the secure credential store of this computer.</p>
+        <p className="text-sm text-stone-500 mt-0.5">Ask whoever sent the files for these details. The password is kept in your computer's secure credential store.</p>
       </div>
       <div className="grid sm:grid-cols-[140px_1fr_100px] gap-3">
         <div>
@@ -461,23 +461,23 @@ function AddServer({ onAdded, onCancel, canCancel }: { onAdded: (s: FileServer) 
           <Input type="password" value={password} onChange={(e) => edit(setPassword)(e.target.value)} autoComplete="off" />
         </div>
       )}
-      {protocol === "ftp" && <Callout tone="amber">FTP does not encrypt the password or the files. If the file server can use SFTP or FTPS, use SFTP or FTPS.</Callout>}
+      {protocol === "ftp" && <Callout tone="amber">FTP sends the password and files unencrypted. Use SFTP or FTPS if the server supports it.</Callout>}
       {error && <Callout tone="red">{error}</Callout>}
       {tested && (
-        <Callout tone="green" icon={<ShieldCheck className="size-4" />} title="The connection is correct">
+        <Callout tone="green" icon={<ShieldCheck className="size-4" />} title="Connected">
           {tested.hostKey ? (
             <>
               The identity of the file server is <span className="font-mono text-xs break-all">{tested.hostKey}</span>. The toolkit keeps this identity. If the identity changes, the toolkit
               gives a warning.
             </>
           ) : (
-            "The details are correct."
+            "The details work."
           )}
         </Callout>
       )}
       {tested && (
         <div className="max-w-sm">
-          <Label hint="A name that helps you identify the file server">Name for this file server</Label>
+          <Label hint="So you can recognise it later">Name for this file server</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={host} />
         </div>
       )}
@@ -524,8 +524,8 @@ function DropPanel({ onDropped }: { onDropped: (files: FileItem[]) => void }) {
         <div className="size-14 mx-auto rounded-2xl bg-white ring-1 ring-stone-200 grid place-items-center mb-4 shadow-sm">
           <Upload className={cx("size-6", dragging ? "text-brand-500" : "text-stone-400")} />
         </div>
-        <div className="text-lg font-medium text-stone-900">{reading ? "Wait." : "Drag a folder or files here"}</div>
-        <p className="text-sm text-stone-500 mt-1 mb-5">The toolkit does not upload the files yet.</p>
+        <div className="text-lg font-medium text-stone-900">{reading ? "Reading files…" : "Drag a folder or files here"}</div>
+        <p className="text-sm text-stone-500 mt-1 mb-5">Nothing is uploaded yet.</p>
         <div className="flex justify-center gap-2">
           <Button variant="secondary" icon={<FolderOpen className="size-4" />} onClick={() => folderInput.current?.click()}>Select folder</Button>
           <Button variant="secondary" icon={<FileIcon className="size-4" />} onClick={() => fileInput.current?.click()}>Select files</Button>
@@ -534,7 +534,7 @@ function DropPanel({ onDropped }: { onDropped: (files: FileItem[]) => void }) {
         <input ref={folderInput} type="file" hidden {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} onChange={(e) => { done(fromFileList(e.target.files)); e.target.value = ""; }} />
       </div>
       <p className="text-xs text-stone-500 mt-3 flex items-center gap-1.5">
-        <Badge>Tip</Badge> For thousands of files, select them from <strong>This computer</strong>. This is faster, and the toolkit does not copy the files.
+        <Badge>Tip</Badge> For thousands of files, use <strong>This computer</strong> instead. It is faster, and nothing needs copying.
       </p>
     </Card>
   );

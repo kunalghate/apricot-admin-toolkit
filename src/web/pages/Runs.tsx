@@ -13,8 +13,8 @@ const problemsOf = (s: JobSummary) => s.counts.failed + s.counts.not_verified;
 
 export function stateBadge(s: JobSummary) {
   if (s.state === "running") return <Badge tone="blue"><Loader2 className="size-3 animate-spin" /> In progress</Badge>;
-  if (s.state === "interrupted") return <Badge tone="amber">Stopped</Badge>;
-  if (s.state === "paused") return s.pausedReason === "error" ? <Badge tone="red">Stopped: problem</Badge> : s.pausedReason === "trial" ? <Badge tone="amber">Test complete</Badge> : <Badge tone="amber">Stopped</Badge>;
+  if (s.state === "interrupted") return <Badge tone="amber">Interrupted</Badge>;
+  if (s.state === "paused") return s.pausedReason === "error" ? <Badge tone="red">Stopped: problem</Badge> : s.pausedReason === "trial" ? <Badge tone="amber">Test done</Badge> : <Badge tone="amber">Stopped</Badge>;
   if (s.state === "ready") return <Badge>Not started</Badge>;
   return problemsOf(s) ? <Badge tone="amber">Complete, with problems</Badge> : <Badge tone="green">Complete</Badge>;
 }
@@ -38,7 +38,7 @@ export function RunsPage({ open }: { open: (id: string) => void }) {
 
   return (
     <div className="animate-fade-up">
-      <PageHeader title="Uploads" subtitle="All uploads and their results. An upload continues when you close this page." />
+      <PageHeader title="Uploads" subtitle="Every upload and its results. Uploads keep going when this page is closed." />
       {!runs && <Spinner />}
       {runs?.length === 0 && (
         <Card className="p-10 text-center text-sm text-stone-500">
@@ -164,7 +164,7 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
     }
   };
 
-  if (!run) return error ? <Callout tone="red">{error}</Callout> : <Spinner label="Wait." />;
+  if (!run) return error ? <Callout tone="red">{error}</Callout> : <Spinner label="Loading…" />;
 
   const done = runDone(run);
   const remaining = run.total - done;
@@ -176,8 +176,8 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
     run.state === "ready" ? `Ready to attach ${plural(run.total, "file")}`
     : run.state === "running" ? `Upload in progress: ${done.toLocaleString()} of ${run.total.toLocaleString()}`
     : run.state === "done" ? (problems ? `${(c.verified + c.already).toLocaleString()} attached · ${plural(problems, "file")} with problems` : run.total === 1 ? "The file is attached and verified" : `All ${(c.verified + c.already).toLocaleString()} files are attached and verified`)
-    : run.pausedReason === "trial" ? `The test is complete: ${plural(done, "file")}. Examine the records in Apricot.`
-    : `Stopped · ${done.toLocaleString()} of ${run.total.toLocaleString()} complete`;
+    : run.pausedReason === "trial" ? `Test done: ${plural(done, "file")} uploaded. Check them in Apricot.`
+    : `${run.state === "interrupted" ? "Interrupted" : "Stopped"} · ${done.toLocaleString()} of ${run.total.toLocaleString()} done`;
 
   const tabs: { id: Tab; label: string; n: number }[] = [
     { id: "problems", label: "Problems", n: problems },
@@ -217,7 +217,7 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
                 {c.not_verified > 0 && <span className="text-amber-700">? {c.not_verified.toLocaleString()} not verified</span>}
                 {c.failed > 0 && <span className="text-red-700">✕ {c.failed.toLocaleString()} failed</span>}
                 {run.state === "running" && run.etaSeconds != null && remaining > 0 && (
-                  <span className="text-stone-400 ml-auto">Time to completion: approximately {formatDuration(run.etaSeconds)}{run.perMinute ? ` · ${Math.round(run.perMinute)} files each minute` : ""}</span>
+                  <span className="text-stone-400 ml-auto">About {formatDuration(run.etaSeconds)} left{run.perMinute ? ` · ${Math.round(run.perMinute)} files a minute` : ""}</span>
                 )}
               </div>
             </div>
@@ -225,23 +225,23 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
         </div>
 
         {run.state === "running" && (
-          <p className="mt-5 text-sm text-stone-500">You can close this page. The upload continues while the toolkit window is open.</p>
+          <p className="mt-5 text-sm text-stone-500">You can close this page. The upload keeps going while the toolkit window is open.</p>
         )}
         {run.state === "interrupted" && (
           <div className="mt-5">
-            <Callout tone="amber" title="This upload stopped when the toolkit closed">
-              {done.toLocaleString()} of {run.total.toLocaleString()} files are complete. Select Continue to upload the other files. The toolkit does not upload a file two times.
+            <Callout tone="amber" title="This upload stopped when the toolkit was closed">
+              {done.toLocaleString()} of {run.total.toLocaleString()} files are complete. Select Continue to upload the other files. No file is uploaded twice.
             </Callout>
           </div>
         )}
         {run.state === "paused" && run.pausedReason === "error" && (
           <div className="mt-5">
-            <Callout tone="red" title="The upload stopped because of a problem that affects all files">
+            <Callout tone="red" title="Upload stopped: a problem is affecting every file">
               {run.pauseMessage}{" "}
               {run.autoResumeAt
-                ? `The toolkit starts again automatically at ${new Date(run.autoResumeAt).toLocaleTimeString(undefined, { timeStyle: "short" })}. You can also continue now.`
-                : "Correct the problem, then select Continue."}{" "}
-              The toolkit does not upload a file two times.
+                ? `It will try again automatically at ${new Date(run.autoResumeAt).toLocaleTimeString(undefined, { timeStyle: "short" })}, or you can continue now.`
+                : "Fix the problem, then select Continue."}{" "}
+              No file is uploaded twice.
             </Callout>
           </div>
         )}
@@ -256,7 +256,7 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
             </Button>
           )}
           {run.state === "done" && problems > 0 && (
-            <Button icon={<RotateCcw className="size-4" />} loading={busy === "retry"} onClick={() => act("retry", () => api.retryRun(id))}>Do again for the {plural(problems, "file")} with problems</Button>
+            <Button icon={<RotateCcw className="size-4" />} loading={busy === "retry"} onClick={() => act("retry", () => api.retryRun(id))}>Try the {plural(problems, "problem file")} again</Button>
           )}
           <Button variant="secondary" icon={<Download className="size-4" />} loading={busy === "report"} onClick={downloadReport}>Download report</Button>
           {run.state === "done" && <Button variant="ghost" onClick={onAttachMore}>Attach more files</Button>}
@@ -266,7 +266,7 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
               className="ml-auto text-stone-400"
               icon={<Trash2 className="size-4" />}
               onClick={async () => {
-                if (!confirm("Remove this upload from the list? The files that are attached stay on the records.")) return;
+                if (!confirm("Remove this upload from the list? Files already attached stay on their records.")) return;
                 await api.deleteRun(id);
                 onBack();
               }}
@@ -276,7 +276,7 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
           )}
         </div>
         {run.pausedReason === "trial" && run.state === "paused" && (
-          <p className="text-sm text-stone-500 mt-3">Open the records below in Apricot. Make sure that the files are correct. Then upload the other files.</p>
+          <p className="text-sm text-stone-500 mt-3">Open these records in Apricot and check the files. If they look right, upload the rest.</p>
         )}
       </Card>
 
@@ -298,7 +298,7 @@ export function RunPage({ id, onBack, onAttachMore }: { id: string; onBack: () =
         </div>
         <div className="max-h-[480px] overflow-y-auto divide-y divide-stone-100">
           {!items && <div className="p-6"><Spinner /></div>}
-          {items?.items.length === 0 && <div className="p-10 text-center text-sm text-stone-500">{activeTab === "problems" ? "There are no problems." : "There are no files here."}</div>}
+          {items?.items.length === 0 && <div className="p-10 text-center text-sm text-stone-500">{activeTab === "problems" ? "No problems." : "Nothing here yet."}</div>}
           {items?.items.map((i) => <ItemRow key={i.n} item={i} />)}
           {items && items.total > items.items.length && (
             <div className="p-3 text-center">

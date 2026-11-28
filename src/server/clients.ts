@@ -18,9 +18,9 @@ export async function clientFor(connectionId: string): Promise<ApricotClient> {
   const cached = clients.get(connectionId);
   if (cached) return cached;
   const conn = getConnection(connectionId);
-  if (!conn) throw new HttpError(404, "This connection does not exist now. Add the connection again on the Connections page.");
+  if (!conn) throw new HttpError(404, "This connection no longer exists. Add it again on the Connections page.");
   const secret = await getSecret(connectionId);
-  if (!secret) throw new HttpError(400, "The toolkit cannot find the saved secret for this connection. Remove the connection, then add it again.");
+  if (!secret) throw new HttpError(400, "The saved secret for this connection is missing. Remove the connection and add it again.");
   const client = new ApricotClient(connectionId, conn.clientId, secret);
   clients.set(connectionId, client);
   return client;

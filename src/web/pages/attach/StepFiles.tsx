@@ -30,12 +30,12 @@ export function StepFiles({
   return (
     <div className="space-y-6">
       <Card className="p-6">
-        <Label hint="The toolkit uses this to attach each file to the correct record.">What tells the toolkit which record each file goes to?</Label>
+        <Label>Match files to records</Label>
         <div className="grid sm:grid-cols-2 gap-2 max-w-3xl mt-2">
           {(
             [
-              { id: "names", icon: FileText, title: "The file names", desc: "For example, 25698_consent.pdf or Doe_Jane_1985-03-02.pdf" },
-              { id: "sheet", icon: FileSpreadsheet, title: "A spreadsheet", desc: "Each row gives a file (name, path or link) and the record for that file" },
+              { id: "names", icon: FileText, title: "By file name", desc: "The name has the record ID or other details, like 25698_consent.pdf" },
+              { id: "sheet", icon: FileSpreadsheet, title: "By spreadsheet", desc: "Each row lists a file (name, path or link) and its record" },
             ] as const
           ).map((o) => (
             <button
@@ -133,15 +133,15 @@ function FileSummary({
         </div>
       </Card>
       <div className="space-y-2">
-        {truncated && <Callout tone="amber" title="This folder is very large">The toolkit found only the first 100,000 files. Select a smaller folder to include all the files.</Callout>}
-        {blocked.length > 0 && <Callout tone="red" title={`The toolkit will not upload ${plural(blocked.length, "program file")}`}>You cannot attach program files, for example .exe files, to Apricot records.</Callout>}
-        {notImages.length > 0 && <Callout tone="red" title={`The toolkit will not upload ${plural(notImages.length, "file")} that are not images`}>"{fieldLabel}" is an image field. It accepts only images, for example .jpg, .png or .gif files.</Callout>}
+        {truncated && <Callout tone="amber" title="This folder is very large">Only the first 100,000 files are included. Select a smaller folder to include them all.</Callout>}
+        {blocked.length > 0 && <Callout tone="red" title={`${plural(blocked.length, "program file")} will be skipped`}>You cannot attach program files, for example .exe files, to Apricot records.</Callout>}
+        {notImages.length > 0 && <Callout tone="red" title={`${plural(notImages.length, "file")} will be skipped because ${notImages.length === 1 ? "it is not an image" : "they are not images"}`}>"{fieldLabel}" is an image field. It accepts only images, for example .jpg, .png or .gif files.</Callout>}
         {unusual.length > 0 && !imageOnly && (
           <Callout tone="amber" title={`${plural(unusual.length, "file")} with an unusual file type`}>
             Each Apricot organization sets the file types that it accepts. The toolkit will try to upload these files. If Apricot rejects a file type, the toolkit does not upload the other files of that type.
           </Callout>
         )}
-        {large.length > 0 && <Callout tone="red" title={`The toolkit will not upload ${plural(large.length, "file")} larger than ${MAX_UPLOAD_LABEL}`}>The Apricot API accepts files up to {MAX_UPLOAD_LABEL}. Make these files smaller, or attach them in Apricot.</Callout>}
+        {large.length > 0 && <Callout tone="red" title={`${plural(large.length, "file")} over ${MAX_UPLOAD_LABEL} will be skipped`}>The Apricot API accepts files up to {MAX_UPLOAD_LABEL}. Make these files smaller, or attach them in Apricot.</Callout>}
       </div>
     </>
   );
@@ -324,7 +324,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
     <>
       {/* 1. The spreadsheet */}
       <Card className="p-6">
-        <Label hint="Use an Excel (.xlsx) or CSV file. You do not have to change it. On the next steps, you tell the toolkit what each column is.">The spreadsheet</Label>
+        <Label hint="Excel (.xlsx) or CSV. Use it as you received it.">Spreadsheet</Label>
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -390,15 +390,15 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                 </button>
               </div>
             ))}
-            {fileCols.length === 0 && <Callout tone="amber">The toolkit did not find a column with files. Add the column below.</Callout>}
+            {fileCols.length === 0 && <Callout tone="amber">No column with files was found. Add one below.</Callout>}
             {pendingSuggestions.map((g) => (
               <div key={g.col} className="flex items-center gap-3 rounded-xl bg-sky-50/60 ring-1 ring-sky-200/70 px-3 py-2.5 text-sm">
                 <Sparkles className="size-4 text-sky-600 shrink-0" />
                 <span className="flex-1 min-w-0 text-stone-700">
-                  The spreadsheet also has the column <strong>{sheet.header[g.col]}</strong>. You can attach these files to <strong>{fieldLabel(g.fieldId)}</strong> in the same upload.
+                  This spreadsheet also has a <strong>{sheet.header[g.col]}</strong> column. Attach those files to <strong>{fieldLabel(g.fieldId)}</strong> too?
                 </span>
                 <Button size="sm" variant="secondary" icon={<Plus className="size-3.5" />} onClick={() => setFileCols([...fileCols, g])}>Add</Button>
-                <button className="text-stone-400 hover:text-stone-700 cursor-pointer" onClick={() => setSuggested(suggested.filter((x) => x.col !== g.col))} aria-label="Do not add this column">
+                <button className="text-stone-400 hover:text-stone-700 cursor-pointer" onClick={() => setSuggested(suggested.filter((x) => x.col !== g.col))} aria-label="Dismiss">
                   <X className="size-4" />
                 </button>
               </div>
@@ -432,8 +432,8 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
               intro={
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-stone-800">Where are the files of the column "{sheet.header[pickingFor]}"?</div>
-                    <p className="text-xs text-stone-500 mt-0.5">Select the folder that has the files. The toolkit also looks in all the folders in it.</p>
+                    <div className="text-sm font-medium text-stone-800">Where are the "{sheet.header[pickingFor]}" files?</div>
+                    <p className="text-xs text-stone-500 mt-0.5">Select the folder that has these files. Subfolders are included.</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setPickingFor(null)}>Cancel</Button>
                 </div>
@@ -444,9 +444,9 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
               onPicked={setShared}
               intro={
                 <div>
-                  <div className="text-sm font-medium text-stone-800">Where are the files that the spreadsheet gives?</div>
+                  <div className="text-sm font-medium text-stone-800">Where are the files?</div>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Select the folder that has the files. The toolkit also looks in all the folders in it. Files for a column can be in a different location. You can select that location on the next screen.
+                    Select the folder that has them. Subfolders are included. If some files are in another place, you can set that next.
                   </p>
                 </div>
               }
@@ -454,9 +454,9 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
           ) : (
             <Card className="overflow-hidden">
               <div className="flex items-center gap-3 px-5 pt-4 pb-2">
-                <div className="flex-1 text-sm font-medium text-stone-800">Locations of the files</div>
+                <div className="flex-1 text-sm font-medium text-stone-800">File locations</div>
                 {shared && fileCols.some((c) => !own[c.col] && styles.get(c.col) === "relative") && (
-                  <Button variant="ghost" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={() => setShared(null)}>Select a different folder</Button>
+                  <Button variant="ghost" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={() => setShared(null)}>Change folder</Button>
                 )}
               </div>
               <div className="divide-y divide-stone-100">
@@ -475,7 +475,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                           <strong>{sheet.header[c.col]}</strong> <span className="text-stone-400">→ {fieldLabel(c.fieldId)}</span>
                         </div>
                         <div className="text-xs text-stone-500 truncate" title={p?.label}>
-                          {checking ? "The toolkit examines the paths on this computer" : p ? `From ${shortPlace(p.label)}` : "No location selected"}
+                          {checking ? "Checking the paths on this computer…" : p ? `From ${shortPlace(p.label)}` : "No location selected"}
                         </div>
                       </div>
                       {pc && pc.total > 0 && (
@@ -493,7 +493,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                       )}
                       {st !== "links" && (
                         <Button variant={pc && pc.total > 0 && pc.found === 0 ? "primary" : "secondary"} size="sm" icon={<FolderOpen className="size-3.5" />} onClick={() => setPickingFor(c.col)}>
-                          {o ? "Select again" : "Select a different location"}
+                          Change location
                         </Button>
                       )}
                     </div>
@@ -501,7 +501,7 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                 })}
               </div>
               {fileCols.some((c) => styles.get(c.col) === "links" && !own[c.col]) && (
-                <p className="px-5 pb-4 pt-1 text-xs text-stone-500">The toolkit downloads the files from the web links during the upload. Each link must open the file directly, without a sign-in.</p>
+                <p className="px-5 pb-4 pt-1 text-xs text-stone-500">Web links are downloaded during the upload. Each link must open the file directly, with no sign-in.</p>
               )}
               {fullPaths.error && <p className="px-5 pb-4 text-xs text-red-700">{fullPaths.error}</p>}
             </Card>
@@ -531,8 +531,8 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
           )}
           {(stats.missing > 0 || stats.ambiguous > 0) && (
             <p className="text-sm text-stone-500 mt-3">
-              You can continue. The Examine step shows all the problems. You can download the list and correct the spreadsheet.
-              {stats.missing > 0 && " If the toolkit finds no files for a column, the files are possibly in a different location. Click \"Select a different location\" above."}
+              You can continue. The Review step lists every problem, and you can download them to fix in the spreadsheet.
+              {stats.missing > 0 && " If a column shows no files found, its files are probably in another folder. Use \"Change location\" on that column."}
             </p>
           )}
           {stats.unused > 0 && stats.listed > 0 && (

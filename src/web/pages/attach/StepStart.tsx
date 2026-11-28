@@ -110,16 +110,15 @@ export function StepStart({
             <div className="text-lg font-semibold text-stone-900">Attach {plural(planned.length, "file")} to records on {target.form.name}</div>
             <div className="text-sm text-stone-500 mt-1">
               Into the fields {new Intl.ListFormat("en", { type: "conjunction" }).format(fields.map((f) => `"${f.label}"`))} · from {[...new Set(locations.map((l) => l.label))].join(" and ")} · {connection.name}
-              {replacing > 0 && ` · the toolkit replaces ${plural(replacing, "file")} on records`}
+              {replacing > 0 && ` · ${plural(replacing, "existing file")} will be replaced`}
             </div>
           </div>
         </div>
 
         <div className="mt-6 space-y-4">
-          <Callout tone="neutral" icon={<MonitorCheck className="size-4" />} title="The upload continues when you close this page">
-            The toolkit does the upload, not this page. You can close this page or do other work. Do not close the toolkit window. You can
-            minimize it. During the upload, your computer does not go to sleep. If the upload stops, it continues from the last file. The
-            toolkit verifies each file on the record after the upload.
+          <Callout tone="neutral" icon={<MonitorCheck className="size-4" />} title="You can close this page while it uploads">
+            The upload runs in the toolkit window, so keep that window open (you can minimize it). Your computer stays awake until it
+            finishes. If something stops it, it continues where it left off, and every file is verified on its record.
           </Callout>
           {isProd && (
             <label className="flex items-start gap-3 rounded-xl bg-red-50 ring-1 ring-red-200 p-4 cursor-pointer">

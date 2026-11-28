@@ -57,7 +57,7 @@ export async function removeServer(id: string) {
 
 async function credentialsFor(id: string): Promise<ServerCredentials> {
   const raw = await getSecret(secretName(id));
-  if (!raw) throw new FileError("The toolkit cannot find the saved password for this file server. Remove the file server, then add it again.", "missing_secret");
+  if (!raw) throw new FileError("The saved password for this file server is missing. Remove the server and add it again.", "missing_secret");
   return JSON.parse(raw) as ServerCredentials;
 }
 
@@ -91,12 +91,12 @@ const fingerprint = (key: Buffer) => `SHA256:${new Bun.CryptoHasher("sha256").up
 function friendlyNetError(err: unknown, s: ServerSettings): FileError {
   const msg = err instanceof Error ? err.message : String(err);
   if (err instanceof FileError) return err;
-  if (/ENOTFOUND|getaddrinfo/i.test(msg)) return new FileError(`The toolkit cannot find a file server with the name "${s.host}". Make sure that the address is correct.`, "unreachable");
+  if (/ENOTFOUND|getaddrinfo/i.test(msg)) return new FileError(`Cannot find a server called "${s.host}". Check the address.`, "unreachable");
   if (/ECONNREFUSED/i.test(msg)) return new FileError(`"${s.host}" did not accept a connection on port ${s.port}. Make sure that the port is correct and that it is an ${s.protocol.toUpperCase()} file server.`, "unreachable");
   if (/ETIMEDOUT|timed? ?out/i.test(msg))
     return new FileError(`"${s.host}" did not reply. It is possible that your network or firewall blocks it. Or, the address or the port is not correct.`, "unreachable");
-  if (/authentication|auth fail|530|login incorrect|permission denied/i.test(msg)) return new FileError("The file server did not accept the user name and the password (or the key).", "auth");
-  if (/certificate|self.signed|CERT_/i.test(msg)) return new FileError("The toolkit does not trust the security certificate of the file server. The toolkit did not connect.", "certificate");
+  if (/authentication|auth fail|530|login incorrect|permission denied/i.test(msg)) return new FileError("The file server did not accept that user name and password (or key).", "auth");
+  if (/certificate|self.signed|CERT_/i.test(msg)) return new FileError("The file server's security certificate is not trusted, so the connection was not made.", "certificate");
   if (/no such file|ENOENT|550/i.test(msg)) return new FileError("This folder or file does not exist on the file server.", "not_found");
   return new FileError(`The connection to the file server failed (${msg}).`, "unreachable");
 }
@@ -142,7 +142,7 @@ async function connectSftp(s: ServerSettings, creds: ServerCredentials, expected
         reject(
           mismatch
             ? new FileError(
-                "The identity of this file server changed after you saved it. This can show that a person intercepts the connection. Speak to the owner of the file server. Then remove the file server and add it again.",
+                "This file server's identity has changed since you saved it, which can mean someone is intercepting the connection. Check with the server's owner, then remove and re-add the server.",
                 "host_key_changed",
               )
             : err,
@@ -316,7 +316,7 @@ async function connection(serverId: string): Promise<Remote> {
     live.delete(serverId);
   }
   const server = getServer(serverId);
-  if (!server) throw new FileError("This file server is not saved now. Add the file server again.", "missing_secret");
+  if (!server) throw new FileError("This file server is no longer saved. Add it again.", "missing_secret");
   const remote = (async () => {
     const creds = await credentialsFor(serverId);
     return server.protocol === "sftp" ? connectSftp(server, creds, server.hostKey) : connectFtp(server, creds);

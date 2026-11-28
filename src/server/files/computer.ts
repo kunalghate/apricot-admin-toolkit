@@ -95,12 +95,12 @@ export async function browse(dir: string): Promise<BrowseResult> {
       if (e.code === "ENOENT") throw new FileError("This folder does not exist on this computer.", "not_found");
       if (e.code === "ENOTDIR") throw new FileError("This is a file, not a folder.");
       if (e.code === "EACCES" || e.code === "EPERM") throw new FileError("You do not have permission to open this folder.", "auth");
-      throw new FileError(`The toolkit cannot open this folder (${e.code ?? e.message}).`);
+      throw new FileError(`Cannot open this folder (${e.code ?? e.message}).`);
     }),
     20_000,
     null,
   );
-  if (!dirents) throw new FileError("This folder did not open in the usual time. If it is on a network drive, make sure that you are connected to the network.", "unreachable");
+  if (!dirents) throw new FileError("This folder is taking too long to open. If it is on a network drive, check that you are connected.", "unreachable");
 
   const entries: BrowseEntry[] = [];
   const files: { name: string; full: string }[] = [];
@@ -125,7 +125,7 @@ export async function browse(dir: string): Promise<BrowseResult> {
 /** Every file under a folder (recursively), with paths relative to it. */
 export async function scan(root: string, onProgress?: (n: number) => void): Promise<{ files: FileRef[]; truncated: boolean }> {
   const base = resolve(cleanPath(root));
-  if (!(await isDir(base))) throw new FileError("This folder does not exist on this computer, or the toolkit cannot open it.", "not_found");
+  if (!(await isDir(base))) throw new FileError("This folder does not exist on this computer, or it cannot be opened.", "not_found");
   const files: FileRef[] = [];
   let truncated = false;
   const walk = async (dir: string, depth: number): Promise<void> => {
@@ -194,6 +194,6 @@ export function resolveIn(root: string, path: string): string {
 
 export async function readLocal(full: string): Promise<Blob> {
   const f = Bun.file(full);
-  if (!(await f.exists())) throw new FileError("The file is not in its location now. It is possible that a person moved, renamed, or deleted it.", "not_found");
+  if (!(await f.exists())) throw new FileError("This file is no longer there. It may have been moved, renamed or deleted.", "not_found");
   return f;
 }

@@ -302,7 +302,7 @@ class Job {
       // Items were pushed back and the queue ran dry while they waited.
       this.meta.state = "paused";
       this.meta.pausedReason = "error";
-      this.meta.pauseMessage ??= "The toolkit did not complete some files. Continue the upload to do these files again.";
+      this.meta.pauseMessage ??= "Some files could not be processed yet. Continue to try them again.";
       this.saveMeta();
     }
   }
@@ -324,21 +324,21 @@ class Job {
     const field = this.spec.fields.find((f) => f.id === item.fieldId);
     const ext = fileExtension(item.name);
 
-    if (ext && this.rejectedExts.has(ext)) return done("skipped", `Apricot did not accept .${ext} files before in this upload. The toolkit did not upload this file.`, undefined, "rejected_type");
-    if (fileTypeRisk(item.name) === "blocked") return done("failed", "The toolkit does not attach program files, for example .exe files.");
-    if (field?.imageOnly && !isImageFile(item.name)) return done("failed", "This is an image field. It accepts only pictures.");
+    if (ext && this.rejectedExts.has(ext)) return done("skipped", `Skipped: Apricot rejected .${ext} files earlier in this upload.`, undefined, "rejected_type");
+    if (fileTypeRisk(item.name) === "blocked") return done("failed", "Program files like .exe cannot be attached.");
+    if (field?.imageOnly && !isImageFile(item.name)) return done("failed", "This is an image field, so only images can go in it.");
     if (item.size != null && item.size > MAX_UPLOAD_BYTES) return done("failed", "This file is larger than the 10 MB limit.");
 
     const c = await clientFor(this.spec.connectionId);
 
     // 1. Look at the record as it is right now.
     const rec = await c.getRecord(item.recordId);
-    if (!rec) return done("failed", "The record does not exist now, or this Apricot user cannot see it.");
+    if (!rec) return done("failed", "The record no longer exists, or this Apricot user cannot see it.");
     if (Number(rec.attributes.form_id) !== this.spec.formId) return done("failed", "This record is on a different form.");
     const existing = attachedFile(rec.attributes, item.fieldId);
     if (existing && sameFile(existing, item.name, item.size)) return done("already", "The record already has this file.", existing);
     if (existing && !this.spec.replaceExisting)
-      return done("skipped", `The record already has "${existing.filename}". The toolkit did not replace it.`, existing);
+      return done("skipped", `Skipped: the record already has "${existing.filename}".`, existing);
 
     // 2. Get the file.
     let blob: Blob;
@@ -420,7 +420,7 @@ export function loadJobs() {
 
 export function createJob(spec: JobSpec): JobSummary {
   const conn = getConnection(spec.connectionId);
-  if (!conn) throw new FileError("This connection does not exist now.");
+  if (!conn) throw new FileError("This connection no longer exists.");
   if (spec.items.length === 0) throw new FileError("There are no files to upload.");
   const id = `${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 8)}`;
   const meta: Meta = {

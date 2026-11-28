@@ -1,10 +1,19 @@
-# Writing style: ASD-STE100 (Simplified Technical English)
+# Writing style: plain product voice, based on ASD-STE100
 
 All text that people see (screens, buttons, field labels, messages, errors, the console banner)
-follows ASD-STE100. This file lists the rules we apply and the fixed terms we use.
+is short, clear and consistent. We take the useful parts of ASD-STE100 (Simplified Technical
+English): short sentences, active voice, one instruction per sentence, one term for one thing,
+no idioms. We do NOT apply it so literally that the text sounds robotic.
 
-The approved-word list comes from the STE dictionary. Where we are not sure that a word is approved,
-we use a word from the substitution table below. For a formal check, use an STE checker.
+**Product-voice rules that take priority over literal STE:**
+
+- Headings and labels are short phrases, not sentences: "Match files to records", "File locations",
+  "Find records by". Never a riddle like "What tells the toolkit which record each file goes to?".
+- Talk to the person ("you", or an imperative), not about the program. Use "the toolkit" only when
+  it really matters who does something. Prefer "Every file is verified" to "The toolkit verifies each file".
+- Use the familiar word people expect in software: Review, Match, Try again, Loading…, Connecting….
+  Short "-ing…" progress labels are fine.
+- Read every string aloud. If nobody would say it that way, rewrite it.
 
 ## Rules
 
@@ -17,8 +26,8 @@ we use a word from the substitution table below. For a formal check, use an STE 
 5. **Instructions use the imperative.** "Select the folder." Not "You should select the folder."
 6. **Active voice.** "The toolkit replaces the file." Not "The file is replaced."
    Passive voice is permitted in descriptions only when the agent is not known or not important.
-7. **Simple tenses only**: present, past, simple future. No "-ing" verb forms, except in technical
-   names. Progress text uses a noun: "Upload in progress", not "Uploading…".
+7. **Simple tenses**: present, past, simple future. Short progress labels may use "-ing…"
+   ("Loading…", "Checking the paths…").
 8. **No contractions.** "Do not", "cannot", "is not".
 9. **No idioms, jokes, or emotion.** No "Oops", "Looks good", "Hold on", no exclamation marks.
 10. **Articles.** Use "a", "an", "the" where English needs them. Do not shorten text by removing them.
@@ -53,8 +62,8 @@ we use a word from the substitution table below. For a formal check, use an STE 
 | Make a choice | select | choose, pick |
 | Start again after a stop | continue | resume |
 | Stop for some time | stop | pause, hold |
-| Do again after a failure | do again | retry, try again |
-| A small test before all | test | try, trial |
+| Do again after a failure | try again | retry, do again |
+| A small test before all | test | trial |
 | Look for a record | find | look up, search for (as a verb phrase) |
 | Look for files in a location | find | scan, list, browse |
 | Remove from a list | remove | delete (use "delete" only for data that goes away) |
@@ -67,7 +76,6 @@ we use a word from the substitution table below. For a formal check, use an STE 
 | Try 3 first | Upload 3 files as a test |
 | Looks good. Upload the remaining 391 | Upload the other 391 files |
 | Resume (391 to go) | Continue (391 files remain) |
-| Uploading… 76 of 11,560 | Upload in progress: 76 of 11,560 |
-| Pick the folder that contains them. | Select the folder that has the files. |
-| You can't undo this. | You cannot undo this. |
-| This keeps going without you | The upload continues when you close this page |
+| What tells the toolkit which record each file goes to? | Match files to records |
+| The toolkit does not upload rows that have a problem. | Rows that need attention are skipped. |
+| Apricot did not reply in the usual time. Wait some minutes, then do the step again. | Apricot is taking too long to respond. Wait a few minutes and try again. |
