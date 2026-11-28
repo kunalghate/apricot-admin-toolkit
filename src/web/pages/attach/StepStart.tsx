@@ -33,6 +33,7 @@ export function StepStart({
   const fieldIds = [...new Set(planned.map((r) => r.fieldId))];
   const fields = target.fields.filter((f) => fieldIds.includes(f.id));
   const isProd = connection.environment === "production";
+  const locations = source.locations ?? [{ location: source.location, label: source.locationLabel }];
   const [confirmed, setConfirmed] = useState(!isProd);
   const [preparing, setPreparing] = useState<{ done: number; total: number } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,18 +45,24 @@ export function StepStart({
     try {
       // Dragged-in files are copied into the toolkit's own folder first, so the run
       // doesn't depend on this page staying open.
-      if (source.location.kind === "dropped") {
-        const stageId = source.location.stageId;
-        const files = [...new Map(planned.map((r) => [r.file!.id, r.file!])).values()];
-        setPreparing({ done: 0, total: files.length });
+      const toStage = [
+        ...new Map(
+          planned.flatMap((r) => {
+            const l = locations[r.loc ?? 0]!.location;
+            return l.kind === "dropped" && r.file?.file ? [[`${l.stageId}|${r.file.path}`, { stageId: l.stageId, f: r.file }] as const] : [];
+          }),
+        ).values(),
+      ];
+      if (toStage.length) {
+        setPreparing({ done: 0, total: toStage.length });
         let next = 0;
         let done = 0;
         await Promise.all(
           Array.from({ length: 4 }, async () => {
-            while (next < files.length) {
-              const f = files[next++]!;
+            while (next < toStage.length) {
+              const { stageId, f } = toStage[next++]!;
               await api.stage(stageId, f.file!, f.path);
-              setPreparing({ done: ++done, total: files.length });
+              setPreparing({ done: ++done, total: toStage.length });
             }
           }),
         );
@@ -69,13 +76,15 @@ export function StepStart({
         recordLabel: r.record!.label,
         fieldId: r.fieldId,
         sheetRow: r.sheetRow,
+        loc: r.loc ?? 0,
       }));
       const run = await api.createRun({
         connectionId: connection.id,
         formId: target.form.id,
         formName: target.form.name,
-        location: source.location,
-        locationLabel: source.locationLabel,
+        location: locations[0]!.location,
+        locationLabel: [...new Set(locations.map((l) => l.label))].join(" + "),
+        locations: locations.map((l) => l.location),
         fields: fields.map((f) => ({ id: f.id, label: f.label, imageOnly: isImageField(f) })),
         replaceExisting,
         items,
@@ -100,7 +109,7 @@ export function StepStart({
           <div className="flex-1 min-w-0">
             <div className="text-lg font-semibold text-stone-900">Attach {plural(planned.length, "file")} on {target.form.name}</div>
             <div className="text-sm text-stone-500 mt-1">
-              Into {new Intl.ListFormat("en", { type: "conjunction" }).format(fields.map((f) => `"${f.label}"`))} · from {source.locationLabel} · {connection.name}
+              Into {new Intl.ListFormat("en", { type: "conjunction" }).format(fields.map((f) => `"${f.label}"`))} · from {[...new Set(locations.map((l) => l.label))].join(" and ")} · {connection.name}
               {replacing > 0 && ` · ${plural(replacing, "existing file")} will be replaced`}
             </div>
           </div>

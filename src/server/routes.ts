@@ -294,7 +294,9 @@ export const routes = {
     POST: api(async (req) => {
       const spec = (await req.json()) as JobSpec;
       if (!Array.isArray(spec.items) || spec.items.length > 100_000) throw new HttpError(400, "A run can have at most 100,000 files.");
-      return json(createJob({ ...spec, location: validLocation(spec.location) }), 201);
+      const locations = Array.isArray(spec.locations) ? spec.locations.map(validLocation) : undefined;
+      if (locations && spec.items.some((i) => (i.loc ?? 0) >= locations.length)) throw new HttpError(400, "A file points at an unknown location.");
+      return json(createJob({ ...spec, location: validLocation(spec.location), locations }), 201);
     }),
   },
 

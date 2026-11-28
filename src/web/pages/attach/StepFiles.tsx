@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, FileIcon, FileSpreadsheet, FileText, Globe, Link2, Plus, RefreshCw, Upload, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileIcon, FileSpreadsheet, FileText, Folder, FolderOpen, Globe, Link2, Plus, RefreshCw, Sparkles, Upload, X } from "lucide-react";
 import { api } from "../../api";
 import { Badge, Button, Callout, Card, cx, formatBytes, Label, plural, Select, Spinner } from "../../components/ui";
 import { LocationPicker, type PickedFiles } from "../../components/LocationPicker";
 import { type FileItem } from "../../lib/files";
 import { readTable } from "../../lib/sheets";
 import {
-  guessFieldForColumn, guessFileColumns, indexFiles, isAbsolutePath, pathStyle, resolveFile, sheetRowNumber, type Resolution, type Sheet,
+  guessFieldForColumn, guessFileColumns, indexFiles, isAbsolutePath, pathStyle, resolveFile, sheetRowNumber, type PathStyle, type Resolution, type Sheet,
 } from "../../lib/mapping";
 import { fileExtension, fileTypeRisk, isAttachmentField, isImageField, isImageFile, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "../../../shared/fields";
 import type { FileLocation } from "../../../shared/types";
@@ -149,17 +149,32 @@ function FileSummary({
 
 // ── A mapping spreadsheet ────────────────────────────────────────────────────
 
+type Place = { location: FileLocation; label: string; files: FileItem[] };
+
+/** "…/Exports/Customer export" instead of the whole path; the full path shows on hover. */
+const shortPlace = (label: string) => {
+  const parts = label.split(/[\\/]/).filter(Boolean);
+  return parts.length > 2 && /[\\/]/.test(label) ? `…/${parts.slice(-2).join("/")}` : label;
+};
+/** Remembered so going Back and forward keeps the choices. Keyed by spreadsheet column. */
+interface PickState {
+  shared: PickedFiles | null;
+  own: Record<number, PickedFiles>;
+}
+
 function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initial: Source | null; onBack: () => void; onNext: (s: Source) => void }) {
   const fileFields = target.fields.filter((f) => isAttachmentField(f) && f.active && !f.hidden);
+  const restored = initial?.sheet?.pickState as PickState | undefined;
   const [sheet, setSheet] = useState<Sheet | null>(initial?.sheet?.sheet ?? null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [fileCols, setFileCols] = useState<{ col: number; fieldId: number }[]>(initial?.sheet?.fileCols ?? []);
-  const [picked, setPicked] = useState<PickedFiles | null>(
-    initial && initial.location.kind !== "web" ? { location: initial.location, label: initial.locationLabel, files: initial.files, truncated: false } : null,
-  );
+  const [suggested, setSuggested] = useState<{ col: number; fieldId: number }[]>([]);
+  const [shared, setShared] = useState<PickedFiles | null>(restored?.shared ?? null);
+  const [own, setOwn] = useState<Record<number, PickedFiles>>(restored?.own ?? {});
+  const [pickingFor, setPickingFor] = useState<number | null>(null);
   const [fullPaths, setFullPaths] = useState<{ checking: boolean; files: FileItem[] | null; error?: string }>({ checking: false, files: null });
-  const [useFolderInstead, setUseFolderInstead] = useState(false);
   const sheetInput = useRef<HTMLInputElement>(null);
+  const fieldLabel = (id: number) => fileFields.find((f) => f.id === id)?.label ?? `Field ${id}`;
 
   const loadSheet = async (file: File) => {
     setSheetError(null);
@@ -170,38 +185,48 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
       const header = Array.from({ length: width }, (_, i) => all[0]![i]?.trim() || `Column ${i + 1}`);
       const s: Sheet = { name: file.name, header, rows: all.slice(1) };
       setSheet(s);
-      const guessed = guessFileColumns(s);
+      // Only the field chosen on step 1 is selected. Other file columns are offered, not assumed.
       const options = fileFields.map((f) => ({ id: f.id, label: f.label, image: isImageField(f) }));
-      const taken = new Set<number>();
-      setFileCols(
-        guessed.map((col, i) => {
-          // By header words first; otherwise the first column → the field chosen on step 1, others → the next unused field.
-          const next = fileFields.find((f) => !taken.has(f.id) && f.id !== target.fileField.id)?.id ?? target.fileField.id;
-          const fid = guessFieldForColumn(s, col, options, taken, i === 0 && !taken.has(target.fileField.id) ? target.fileField.id : next);
-          taken.add(fid);
-          return { col, fieldId: fid };
-        }),
+      const guesses = guessFileColumns(s).map((col) => ({ col, fieldId: guessFieldForColumn(s, col, options, new Set(), 0) }));
+      const primary = guesses.find((g) => g.fieldId === target.fileField.id) ?? guesses.find((g) => g.fieldId === 0) ?? guesses[0];
+      setFileCols(primary ? [{ col: primary.col, fieldId: target.fileField.id }] : []);
+      const used = new Set([target.fileField.id]);
+      setSuggested(
+        guesses
+          .filter((g) => g !== primary)
+          .map((g) => {
+            const fid = g.fieldId && !used.has(g.fieldId) ? g.fieldId : (fileFields.find((f) => !used.has(f.id))?.id ?? 0);
+            if (fid) used.add(fid);
+            return { col: g.col, fieldId: fid };
+          })
+          .filter((g) => g.fieldId),
       );
-      setPicked(null);
+      setShared(null);
+      setOwn({});
+      setPickingFor(null);
       setFullPaths({ checking: false, files: null });
-      setUseFolderInstead(false);
     } catch (e) {
       setSheetError((e as Error).message || "Couldn't read that file. Use an Excel (.xlsx) or CSV file.");
     }
   };
 
-  const values = useMemo(() => (sheet ? sheet.rows.flatMap((r) => fileCols.map((c) => r[c.col] ?? "")).filter((v) => v.trim()) : []), [sheet, fileCols]);
-  const style = pathStyle(values);
-  const usesLocation = style === "relative" || (style === "full" && useFolderInstead);
+  // How each file column writes its files: links, full paths, or names/relative paths.
+  const styles = useMemo(() => {
+    const m = new Map<number, PathStyle>();
+    if (sheet) for (const c of fileCols) m.set(c.col, pathStyle(sheet.rows.map((r) => r[c.col] ?? "")));
+    return m;
+  }, [sheet, fileCols]);
 
   // Full paths: check whether they exist on this computer as written.
+  const fullCols = fileCols.filter((c) => styles.get(c.col) === "full" && !own[c.col]).map((c) => c.col);
+  const fullKey = fullCols.join(",");
   useEffect(() => {
-    if (!sheet || style !== "full" || useFolderInstead) return;
+    if (!sheet || fullCols.length === 0) return;
     let cancelled = false;
     (async () => {
       setFullPaths({ checking: true, files: null });
       try {
-        const unique = [...new Set(values.filter(isAbsolutePath).map((v) => v.trim()))];
+        const unique = [...new Set(fullCols.flatMap((col) => sheet.rows.map((r) => (r[col] ?? "").trim())).filter(isAbsolutePath))];
         const found: FileItem[] = [];
         for (let i = 0; i < unique.length; i += 5000) {
           const part = unique.slice(i, i + 5000);
@@ -221,44 +246,79 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
     return () => {
       cancelled = true;
     };
-  }, [sheet, style, useFolderInstead, values.length]);
+  }, [sheet, fullKey]);
 
-  // Where the files are, and what each cell resolves to.
-  const hasCols = fileCols.length > 0;
-  const located = useMemo<{ location: FileLocation; label: string; files: FileItem[] } | null>(() => {
-    if (!sheet || !hasCols) return null;
-    if (style === "links") return { location: { kind: "web" }, label: "Web links in the spreadsheet", files: [] };
-    if (style === "full" && !useFolderInstead)
-      return fullPaths.files ? { location: { kind: "computer", root: "" }, label: "The paths in the spreadsheet", files: fullPaths.files } : null;
-    return picked ? { location: picked.location, label: picked.label, files: picked.files } : null;
-  }, [sheet, hasCols, style, useFolderInstead, fullPaths.files, picked]);
+  const needsShared = fileCols.some((c) => !own[c.col] && styles.get(c.col) === "relative");
+
+  // Where each column's files come from.
+  const places = useMemo(() => {
+    const list: Place[] = [];
+    const keys: string[] = [];
+    const colLocation: number[] = [];
+    let ready = fileCols.length > 0;
+    for (const c of fileCols) {
+      const o = own[c.col];
+      const st = styles.get(c.col);
+      let key: string;
+      let place: Place | null;
+      if (o) [key, place] = [`own:${c.col}`, { location: o.location, label: o.label, files: o.files }];
+      else if (st === "links") [key, place] = ["web", { location: { kind: "web" }, label: "Web links in the spreadsheet", files: [] }];
+      else if (st === "full") [key, place] = ["full", fullPaths.files ? { location: { kind: "computer", root: "" }, label: "The paths in the spreadsheet", files: fullPaths.files } : null];
+      else [key, place] = ["shared", shared ? { location: shared.location, label: shared.label, files: shared.files } : null];
+      if (!place) {
+        ready = false;
+        colLocation.push(-1);
+        continue;
+      }
+      let i = keys.indexOf(key);
+      if (i < 0) {
+        keys.push(key);
+        list.push(place);
+        i = list.length - 1;
+      }
+      colLocation.push(i);
+    }
+    return { list, colLocation, ready };
+  }, [fileCols, own, shared, fullPaths.files, styles]);
 
   const resolved = useMemo<Resolution[][] | null>(() => {
-    if (!sheet || !located) return null;
-    const root = located.location.kind === "computer" || located.location.kind === "server" ? located.location.root : "";
-    const idx = indexFiles(located.files, root);
-    return sheet.rows.map((r) => fileCols.map((c) => resolveFile(r[c.col] ?? "", idx)));
-  }, [sheet, located, fileCols]);
+    if (!sheet || !places.ready) return null;
+    const indexes = places.list.map((p) => indexFiles(p.files, p.location.kind === "computer" || p.location.kind === "server" ? p.location.root : ""));
+    return sheet.rows.map((r) => fileCols.map((c, j) => resolveFile(r[c.col] ?? "", indexes[places.colLocation[j]!]!)));
+  }, [sheet, places, fileCols]);
 
   const stats = useMemo(() => {
-    if (!resolved) return null;
+    if (!resolved || !sheet) return null;
     const s = { found: 0, missing: 0, ambiguous: 0, empty: 0 };
-    for (const row of resolved) for (const r of row) s[r.status]++;
+    const perCol = fileCols.map(() => ({ found: 0, total: 0 }));
     const used = new Set<string>();
-    for (const row of resolved) for (const r of row) if (r.status === "found") used.add(r.file.id);
-    const unused = located ? located.files.filter((f) => !used.has(f.id)).length : 0;
     const examples: { row: number; value: string; status: "missing" | "ambiguous" }[] = [];
     resolved.forEach((row, i) =>
       row.forEach((r, j) => {
+        s[r.status]++;
+        if (r.status !== "empty") perCol[j]!.total++;
+        if (r.status === "found") {
+          perCol[j]!.found++;
+          used.add(r.file.id);
+        }
         if ((r.status === "missing" || r.status === "ambiguous") && examples.length < 6)
-          examples.push({ row: sheetRowNumber(i), value: sheet!.rows[i]![fileCols[j]!.col] ?? "", status: r.status });
+          examples.push({ row: sheetRowNumber(i), value: sheet.rows[i]![fileCols[j]!.col] ?? "", status: r.status });
       }),
     );
-    return { ...s, unused, examples };
+    const listed = places.list.flatMap((p) => p.files);
+    const unused = listed.filter((f) => !used.has(f.id)).length;
+    return { ...s, perCol, unused, listed: listed.length, examples };
   }, [resolved]);
 
   const usedCols = fileCols.map((c) => c.col);
   const otherCols = sheet ? sheet.header.map((_, i) => i).filter((i) => !usedCols.includes(i)) : [];
+  const pendingSuggestions = suggested.filter((g) => !usedCols.includes(g.col));
+  const removeCol = (i: number) => {
+    const col = fileCols[i]!.col;
+    setFileCols(fileCols.filter((_, j) => j !== i));
+    const { [col]: _gone, ...rest } = own;
+    setOwn(rest);
+  };
 
   return (
     <>
@@ -302,11 +362,11 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
       {sheet && (
         <Card className="p-6">
           <Label hint="A column can hold file names, paths (like C:\Exports\abc.pdf), or web links. Each column goes into one file field.">
-            Which columns have the files?
+            Which column has the files for "{target.fileField.label}"?
           </Label>
           <div className="mt-3 space-y-2 max-w-3xl">
             {fileCols.map((c, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl ring-1 ring-stone-200 p-3">
+              <div key={c.col} className="flex items-center gap-3 rounded-xl ring-1 ring-stone-200 p-3">
                 <div className="flex-1 min-w-0">
                   <Select value={c.col} onChange={(e) => setFileCols(fileCols.map((x, j) => (j === i ? { ...x, col: Number(e.target.value) } : x)))}>
                     {sheet.header.map((h, col) => (
@@ -325,12 +385,24 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
                     ))}
                   </Select>
                 </div>
-                <button className="text-stone-400 hover:text-stone-700 cursor-pointer" onClick={() => setFileCols(fileCols.filter((_, j) => j !== i))} aria-label="Remove">
+                <button className="text-stone-400 hover:text-stone-700 cursor-pointer" onClick={() => removeCol(i)} aria-label="Remove">
                   <X className="size-4" />
                 </button>
               </div>
             ))}
             {fileCols.length === 0 && <Callout tone="amber">Couldn't spot a column with files in it. Add one below.</Callout>}
+            {pendingSuggestions.map((g) => (
+              <div key={g.col} className="flex items-center gap-3 rounded-xl bg-sky-50/60 ring-1 ring-sky-200/70 px-3 py-2.5 text-sm">
+                <Sparkles className="size-4 text-sky-600 shrink-0" />
+                <span className="flex-1 min-w-0 text-stone-700">
+                  This spreadsheet also has <strong>{sheet.header[g.col]}</strong>. Attach those to <strong>{fieldLabel(g.fieldId)}</strong> in the same run?
+                </span>
+                <Button size="sm" variant="secondary" icon={<Plus className="size-3.5" />} onClick={() => setFileCols([...fileCols, g])}>Add</Button>
+                <button className="text-stone-400 hover:text-stone-700 cursor-pointer" onClick={() => setSuggested(suggested.filter((x) => x.col !== g.col))} aria-label="No thanks">
+                  <X className="size-4" />
+                </button>
+              </div>
+            ))}
             {otherCols.length > 0 && (
               <Button
                 variant="ghost"
@@ -351,55 +423,94 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
       {/* 3. Where the files are */}
       {sheet && fileCols.length > 0 && (
         <>
-          {style === "links" && (
-            <Callout tone="blue" icon={<Globe className="size-4" />} title="These are web links">
-              The toolkit downloads each file from its link during the upload. Links must open the file directly, without a sign-in.
-            </Callout>
-          )}
-          {style === "full" && !useFolderInstead && (
-            <Card className="p-5 flex items-center gap-4">
-              <Link2 className="size-5 text-brand-700 shrink-0" />
-              <div className="flex-1 text-sm">
-                {fullPaths.checking ? (
-                  <Spinner label="Checking the paths in the spreadsheet on this computer…" />
-                ) : (
-                  <>
-                    The spreadsheet has full paths. <strong>{(fullPaths.files?.length ?? 0).toLocaleString()}</strong> of {new Set(values).size.toLocaleString()} files are at those paths on this computer.
-                    {fullPaths.error && <div className="text-red-700 mt-1">{fullPaths.error}</div>}
-                  </>
+          {pickingFor !== null ? (
+            <LocationPicker
+              onPicked={(p) => {
+                setOwn({ ...own, [pickingFor]: p });
+                setPickingFor(null);
+              }}
+              intro={
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-stone-800">Where are the "{sheet.header[pickingFor]}" files?</div>
+                    <p className="text-xs text-stone-500 mt-0.5">Pick the folder that contains them (subfolders are included).</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setPickingFor(null)}>Cancel</Button>
+                </div>
+              }
+            />
+          ) : needsShared && !shared ? (
+            <LocationPicker
+              onPicked={setShared}
+              intro={
+                <div>
+                  <div className="text-sm font-medium text-stone-800">Where are the files listed in the spreadsheet?</div>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Pick the folder that contains them; subfolders are included. If some columns' files are somewhere else, you can say so next.
+                  </p>
+                </div>
+              }
+            />
+          ) : (
+            <Card className="overflow-hidden">
+              <div className="flex items-center gap-3 px-5 pt-4 pb-2">
+                <div className="flex-1 text-sm font-medium text-stone-800">Where the files are</div>
+                {shared && fileCols.some((c) => !own[c.col] && styles.get(c.col) === "relative") && (
+                  <Button variant="ghost" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={() => setShared(null)}>Change folder</Button>
                 )}
               </div>
-              <Button variant="secondary" size="sm" onClick={() => setUseFolderInstead(true)}>The files are somewhere else</Button>
+              <div className="divide-y divide-stone-100">
+                {fileCols.map((c, j) => {
+                  const st = styles.get(c.col);
+                  const o = own[c.col];
+                  const p = places.colLocation[j]! >= 0 ? places.list[places.colLocation[j]!] : null;
+                  const pc = stats?.perCol[j];
+                  const Icon = o ? Folder : st === "links" ? Globe : st === "full" ? Link2 : Folder;
+                  const checking = st === "full" && !o && fullPaths.checking;
+                  return (
+                    <div key={c.col} className="flex items-center gap-3 px-5 py-3 text-sm">
+                      <Icon className="size-4 text-brand-700 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate">
+                          <strong>{sheet.header[c.col]}</strong> <span className="text-stone-400">→ {fieldLabel(c.fieldId)}</span>
+                        </div>
+                        <div className="text-xs text-stone-500 truncate" title={p?.label}>
+                          {checking ? "Checking the paths on this computer…" : p ? `From ${shortPlace(p.label)}` : "Not chosen yet"}
+                        </div>
+                      </div>
+                      {pc && pc.total > 0 && (
+                        <Badge tone={pc.found === pc.total ? "green" : pc.found === 0 ? "red" : "amber"}>
+                          {pc.found === 0 ? "None found here" : `${pc.found.toLocaleString()} of ${pc.total.toLocaleString()} found`}
+                        </Badge>
+                      )}
+                      {o && (
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          const { [c.col]: _gone, ...rest } = own;
+                          setOwn(rest);
+                        }}>
+                          Undo
+                        </Button>
+                      )}
+                      {st !== "links" && (
+                        <Button variant={pc && pc.total > 0 && pc.found === 0 ? "primary" : "secondary"} size="sm" icon={<FolderOpen className="size-3.5" />} onClick={() => setPickingFor(c.col)}>
+                          {o ? "Choose again" : "Somewhere else…"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {fileCols.some((c) => styles.get(c.col) === "links" && !own[c.col]) && (
+                <p className="px-5 pb-4 pt-1 text-xs text-stone-500">Web links are downloaded during the upload. They must open the file directly, without a sign-in.</p>
+              )}
+              {fullPaths.error && <p className="px-5 pb-4 text-xs text-red-700">{fullPaths.error}</p>}
             </Card>
           )}
-          {usesLocation &&
-            (picked ? (
-              <Card className="p-5 flex items-center gap-4">
-                <CheckCircle2 className="size-5 text-lime-700 shrink-0" />
-                <div className="flex-1 text-sm min-w-0">
-                  <div className="truncate">Files from <strong title={picked.label}>{picked.label}</strong></div>
-                  <div className="text-xs text-stone-500">{plural(picked.files.length, "file")} there</div>
-                </div>
-                <Button variant="secondary" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={() => setPicked(null)}>Change</Button>
-              </Card>
-            ) : (
-              <LocationPicker
-                onPicked={setPicked}
-                intro={
-                  <div>
-                    <div className="text-sm font-medium text-stone-800">Where are the files listed in the spreadsheet?</div>
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      Pick the folder that contains them (subfolders are included). Paths written on someone else's computer are matched by their ending.
-                    </p>
-                  </div>
-                }
-              />
-            ))}
         </>
       )}
 
       {/* 4. What was found */}
-      {stats && (
+      {stats && pickingFor === null && (
         <Card className="p-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Stat n={stats.found} label="files found" tone="green" />
@@ -419,10 +530,13 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
             </div>
           )}
           {(stats.missing > 0 || stats.ambiguous > 0) && (
-            <p className="text-sm text-stone-500 mt-3">You can continue. You'll see every problem on the Review step, and can download the list to fix in the spreadsheet.</p>
+            <p className="text-sm text-stone-500 mt-3">
+              You can continue. You'll see every problem on the Review step, and can download the list to fix in the spreadsheet.
+              {stats.missing > 0 && " If a whole column isn't found, its files are probably somewhere else: use \"Somewhere else…\" above."}
+            </p>
           )}
-          {stats.unused > 0 && located && located.files.length > 0 && (
-            <p className="text-xs text-stone-400 mt-2">{plural(stats.unused, "file")} in that location {stats.unused === 1 ? "isn't" : "aren't"} in the spreadsheet. They'll be left alone.</p>
+          {stats.unused > 0 && stats.listed > 0 && (
+            <p className="text-xs text-stone-400 mt-2">{plural(stats.unused, "file")} in the chosen {places.list.length > 1 ? "places" : "place"} {stats.unused === 1 ? "isn't" : "aren't"} in the spreadsheet. They'll be left alone.</p>
           )}
         </Card>
       )}
@@ -430,11 +544,20 @@ function SheetFiles({ target, initial, onBack, onNext }: { target: Target; initi
       <div className="flex justify-between">
         <Button variant="ghost" icon={<ArrowLeft className="size-4" />} onClick={onBack}>Back</Button>
         <Button
-          disabled={!sheet || !located || !resolved || !stats || stats.found + stats.ambiguous === 0}
+          disabled={!sheet || !resolved || !stats || stats.found + stats.ambiguous === 0 || pickingFor !== null}
           icon={<ArrowRight className="size-4" />}
-          onClick={() =>
-            sheet && located && resolved && onNext({ mode: "sheet", location: located.location, locationLabel: located.label, files: located.files, sheet: { sheet, fileCols, resolved } })
-          }
+          onClick={() => {
+            if (!sheet || !resolved) return;
+            const first = places.list[0]!;
+            onNext({
+              mode: "sheet",
+              location: first.location,
+              locationLabel: first.label,
+              files: first.files,
+              locations: places.list.map((p) => ({ location: p.location, label: p.label })),
+              sheet: { sheet, fileCols, resolved, colLocation: places.colLocation, pickState: { shared, own } satisfies PickState },
+            });
+          }}
         >
           Continue
         </Button>

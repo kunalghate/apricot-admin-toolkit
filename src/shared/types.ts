@@ -128,6 +128,8 @@ export interface JobItem {
   fieldId: number;
   /** Spreadsheet row number, when the run came from a mapping spreadsheet. */
   sheetRow?: number;
+  /** Which of JobSpec.locations the file is in (default 0). */
+  loc?: number;
 }
 
 export interface JobSpec {
@@ -136,6 +138,8 @@ export interface JobSpec {
   formName: string;
   location: FileLocation;
   locationLabel: string;
+  /** When files come from several places (e.g. one folder per spreadsheet column). location = locations[0]. */
+  locations?: FileLocation[];
   fields: { id: number; label: string; imageOnly: boolean }[];
   replaceExisting: boolean;
   items: JobItem[];

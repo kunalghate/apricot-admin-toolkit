@@ -311,9 +311,10 @@ class Job {
   /** Dropped-file copies are deleted once every file is safely attached. */
   private cleanupIfFinished() {
     const s = this.summary();
-    if (this.spec.location.kind === "dropped" && s.counts.failed + s.counts.not_verified === 0) {
+    if (s.counts.failed + s.counts.not_verified > 0) return;
+    for (const id of stagesOf(this.spec)) {
       try {
-        removeStage(this.spec.location.stageId);
+        removeStage(id);
       } catch {}
     }
   }
@@ -344,7 +345,7 @@ class Job {
     let blob: Blob;
     let name = item.name;
     try {
-      const f = await readFile(this.spec.location, item.path);
+      const f = await readFile(this.spec.locations?.[item.loc ?? 0] ?? this.spec.location, item.path);
       blob = f.blob;
       // Web links often end in an ID; prefer the server's file name when ours has no extension.
       if (!fileExtension(name) && fileExtension(f.name)) name = f.name;
@@ -373,6 +374,10 @@ class Job {
     return done("not_verified", `Apricot said the upload worked, but the record shows "${after.filename}" instead.`, after);
   }
 }
+
+/** Folders of dragged-in files a run reads from. */
+const stagesOf = (spec: JobSpec) =>
+  [spec.location, ...(spec.locations ?? [])].flatMap((l) => (l.kind === "dropped" ? [l.stageId] : []));
 
 // ── Registry ─────────────────────────────────────────────────────────────────
 
@@ -408,9 +413,7 @@ export function loadJobs() {
       console.warn(`  Couldn't read saved run ${id}:`, err);
     }
   }
-  const keep = new Set(
-    [...jobs.values()].filter((j) => j.meta.state !== "done" && j.spec.location.kind === "dropped").map((j) => (j.spec.location as { stageId: string }).stageId),
-  );
+  const keep = new Set([...jobs.values()].filter((j) => j.meta.state !== "done").flatMap((j) => stagesOf(j.spec)));
   try {
     cleanStaging(keep);
   } catch {}
@@ -450,9 +453,9 @@ export function deleteJob(id: string) {
   if (!job) return;
   if (job.meta.state === "running") throw new FileError("Pause the run before removing it.");
   jobs.delete(id);
-  if (job.spec.location.kind === "dropped") {
+  for (const id of stagesOf(job.spec)) {
     try {
-      removeStage(job.spec.location.stageId);
+      removeStage(id);
     } catch {}
   }
   rmSync(job.dir, { recursive: true, force: true });

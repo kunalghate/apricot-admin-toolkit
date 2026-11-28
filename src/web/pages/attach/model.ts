@@ -11,6 +11,8 @@ export interface Source {
   /** names: the files to attach. sheet: the files found in the chosen location (may be empty for links). */
   files: FileItem[];
   sheet?: SheetSource;
+  /** Every place files come from. location/locationLabel = locations[0]. */
+  locations?: { location: FileLocation; label: string }[];
 }
 
 export interface SheetSource {
@@ -19,6 +21,10 @@ export interface SheetSource {
   fileCols: { col: number; fieldId: number }[];
   /** resolved[row][i] = what fileCols[i] on that row points to. */
   resolved: Resolution[][];
+  /** colLocation[i] = index into Source.locations for fileCols[i]. */
+  colLocation: number[];
+  /** The Files step's own choices, so going Back keeps them. */
+  pickState?: unknown;
 }
 
 /** One file going into one field on one record. */
@@ -30,6 +36,8 @@ export interface Row {
   fileWanted?: string;
   fileCandidates?: FileItem[];
   fieldId: number;
+  /** Which of Source.locations the file is in (default 0). */
+  loc?: number;
   /** Spreadsheet row number (the header is row 1). */
   sheetRow?: number;
   key: string | null;

@@ -171,7 +171,7 @@ export function StepMatch({
     if (!sheet) {
       rows = keyedFiles.map(({ f, ...k }): Row => ({ id: f.id, file: f, fieldId: target.fileField.id, ...lookup(k) }));
     } else {
-      const { fileCols, resolved } = source.sheet!;
+      const { fileCols, resolved, colLocation } = source.sheet!;
       rows = [];
       keyedRows.forEach((k, i) => {
         const l = lookup(k);
@@ -185,6 +185,7 @@ export function StepMatch({
             fileWanted: sheet.rows[i]![c.col] ?? "",
             fileCandidates: res.status === "ambiguous" ? res.candidates : undefined,
             fieldId: c.fieldId,
+            loc: colLocation[j] ?? 0,
             sheetRow: sheetRowNumber(i),
             ...l,
           });
