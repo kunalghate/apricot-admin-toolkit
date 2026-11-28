@@ -23,7 +23,7 @@ export function Button({
   icon?: ReactNode;
 }) {
   const variants: Record<ButtonVariant, string> = {
-    primary: "bg-apricot-500 text-white hover:bg-apricot-600 shadow-sm shadow-apricot-500/20",
+    primary: "bg-brand-800 text-white hover:bg-brand-900 shadow-sm shadow-brand-900/10",
     secondary: "bg-white text-stone-800 ring-1 ring-stone-200 hover:bg-stone-50 hover:ring-stone-300",
     ghost: "text-stone-600 hover:bg-stone-100 hover:text-stone-900",
     danger: "bg-red-600 text-white hover:bg-red-700",
@@ -33,7 +33,7 @@ export function Button({
     <button
       className={cx(
         "inline-flex items-center justify-center rounded-lg font-medium transition-colors cursor-pointer",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apricot-400 focus-visible:ring-offset-2",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         variants[variant],
         sizes[size],
@@ -66,7 +66,7 @@ export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputEleme
     <input
       className={cx(
         "w-full h-10 rounded-lg bg-white px-3 text-sm ring-1 ring-stone-200 placeholder:text-stone-400",
-        "focus:outline-none focus:ring-2 focus:ring-apricot-400 transition-shadow",
+        "focus:outline-none focus:ring-2 focus:ring-sky-400 transition-shadow",
         className,
       )}
       {...rest}
@@ -79,7 +79,7 @@ export function Select({ className, children, ...rest }: SelectHTMLAttributes<HT
     <select
       className={cx(
         "w-full h-10 rounded-lg bg-white px-3 text-sm ring-1 ring-stone-200 cursor-pointer",
-        "focus:outline-none focus:ring-2 focus:ring-apricot-400",
+        "focus:outline-none focus:ring-2 focus:ring-sky-400",
         className,
       )}
       {...rest}
@@ -92,11 +92,11 @@ export function Select({ className, children, ...rest }: SelectHTMLAttributes<HT
 type Tone = "neutral" | "green" | "amber" | "red" | "blue" | "apricot";
 const tones: Record<Tone, string> = {
   neutral: "bg-stone-100 text-stone-700",
-  green: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/70",
+  green: "bg-lime-50 text-lime-800 ring-1 ring-lime-300/70",
   amber: "bg-amber-50 text-amber-800 ring-1 ring-amber-200/70",
   red: "bg-red-50 text-red-700 ring-1 ring-red-200/70",
   blue: "bg-sky-50 text-sky-700 ring-1 ring-sky-200/70",
-  apricot: "bg-apricot-50 text-apricot-700 ring-1 ring-apricot-200/70",
+  apricot: "bg-brand-50 text-brand-700 ring-1 ring-brand-200/70",
 };
 
 export function Badge({ tone = "neutral", children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
@@ -139,7 +139,7 @@ export function Progress({ value, tone = "apricot" }: { value: number; tone?: "a
   return (
     <div className="h-2.5 w-full rounded-full bg-stone-100 overflow-hidden">
       <div
-        className={cx("h-full rounded-full transition-[width] duration-300", tone === "green" ? "bg-emerald-500" : "bg-apricot-500")}
+        className={cx("h-full rounded-full transition-[width] duration-300", tone === "green" ? "bg-lime-500" : "bg-brand-700")}
         style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
       />
     </div>
@@ -166,13 +166,13 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
           <span
             className={cx(
               "flex items-center gap-2 rounded-full pl-1 pr-3 py-1 text-sm transition-colors",
-              i === current ? "bg-apricot-100 text-apricot-800 font-medium" : i < current ? "text-stone-700" : "text-stone-400",
+              i === current ? "bg-brand-100 text-brand-900 font-medium" : i < current ? "text-stone-700" : "text-stone-400",
             )}
           >
             <span
               className={cx(
                 "flex size-6 items-center justify-center rounded-full text-xs font-semibold",
-                i === current ? "bg-apricot-500 text-white" : i < current ? "bg-emerald-500 text-white" : "bg-stone-200 text-stone-500",
+                i === current ? "bg-brand-800 text-white" : i < current ? "bg-lime-500 text-brand-900" : "bg-stone-200 text-stone-500",
               )}
             >
               {i < current ? "✓" : i + 1}

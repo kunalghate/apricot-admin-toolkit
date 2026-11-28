@@ -3,6 +3,7 @@
 
 import { API_BASE, AUDIENCE, TOKEN_URL } from "./config";
 import { FIELD_TYPE, isIdentifierCandidate } from "../shared/fields";
+import { sameValue } from "../shared/identifiers";
 import type { AttachedFile, FieldInfo, FormSummary, RecordMatch } from "../shared/types";
 
 export class ApricotError extends Error {
@@ -19,23 +20,23 @@ export class ApricotError extends Error {
 export function friendlyMessage(status: number, detail: string): string {
   const d = detail || "";
   if (/Unknown file type/i.test(d))
-    return "Apricot didn't recognise this file type, or the file's extension doesn't match what's inside it.";
+    return "Apricot does not recognise this file type, or the file extension does not match its contents.";
   const notAllowed = d.match(/File type (\S+) not allowed/i);
-  if (notAllowed) return `Your Apricot organization doesn't allow this kind of file (${notAllowed[1]}).`;
+  if (notAllowed) return `Your Apricot organization does not accept this type of file (${notAllowed[1]}).`;
   if (/attachment is requi/i.test(d))
-    return "This form has a required attachment field that's empty on this record, so Apricot won't accept uploads until it's filled.";
+    return "A required file field on this record is empty. Apricot does not accept uploads to this record until that field has a file.";
   if (/Field is locked/i.test(d)) return "Apricot blocked the change because a locked field on this record has a value.";
   if (/Field is hidden/i.test(d)) return "Apricot blocked the change because of a hidden field on this record.";
-  if (/Invalid Parent ID/i.test(d)) return "Apricot couldn't find the parent record this record belongs to.";
-  if (status === 401) return "Apricot didn't accept these credentials. Check the Client ID and Client Secret.";
+  if (/Invalid Parent ID/i.test(d)) return "Apricot cannot find the parent record of this record.";
+  if (status === 401) return "Apricot did not accept these credentials. Check the Client ID and Client Secret.";
   if (status === 403)
-    return "The Apricot user behind these credentials doesn't have permission for this. Check their access in Apricot.";
-  if (status === 404) return "Not found, or the Apricot user behind these credentials can't see it.";
-  if (status === 413) return "This file is over the Apricot API's 10 MB upload limit.";
-  if (status === 429) return "Apricot is receiving too many requests. Waiting a moment usually fixes this.";
-  if (status === 504 || status === 502 || status === 503) return "Apricot took too long to respond. Try again in a moment.";
-  if (status === 0) return "Couldn't reach Apricot. Check your internet connection.";
-  return d ? `Apricot said: ${d}` : `Apricot returned an unexpected error (${status}).`;
+    return "The Apricot user behind these credentials does not have permission for this. Check their access in Apricot.";
+  if (status === 404) return "Not found, or the Apricot user behind these credentials cannot see it.";
+  if (status === 413) return "This file is larger than the 10 MB upload limit of the Apricot API.";
+  if (status === 429) return "Apricot is receiving too many requests. Wait a few minutes and try again.";
+  if (status === 504 || status === 502 || status === 503) return "Apricot is taking too long to respond. Wait a few minutes and try again.";
+  if (status === 0) return "Cannot reach Apricot. Check your internet connection.";
+  return d ? `Message from Apricot: ${d}` : `Apricot returned an unexpected error (${status}).`;
 }
 
 async function readError(res: Response): Promise<string> {
@@ -73,7 +74,7 @@ export async function fetchToken(clientId: string, clientSecret: string): Promis
     throw new ApricotError(res.status, detail, friendlyMessage(status, ""));
   }
   const j = (await res.json()) as { access_token?: string; expires_in?: number };
-  if (!j.access_token) throw new ApricotError(500, "no access_token", "Apricot didn't return an access token.");
+  if (!j.access_token) throw new ApricotError(500, "no access_token", "Apricot did not send an access token.");
   return { token: j.access_token, expiresIn: j.expires_in ?? 3600 };
 }
 
@@ -119,8 +120,6 @@ export function parseAttached(value: unknown): AttachedFile | null {
   }
   return null;
 }
-
-const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
 
 export class ApricotClient {
   private fieldCache = new Map<number, { at: number; fields: FieldInfo[] }>();
@@ -277,18 +276,18 @@ export class ApricotClient {
   }
 
   /**
-   * Records on a form whose field equals `value`. Uses the DB-backed field filter
-   * (case-insensitive exact match). Results are re-checked here because the API
-   * silently ignores filters on unknown fields.
+   * Records on a form matching every (key, value) pair. Uses the DB-backed field filters,
+   * which combine with AND. Results are re-checked here because the API silently ignores
+   * filters on keys it doesn't know (which would otherwise look like "everything matched").
    */
-  async findByField(formId: number, fieldId: number, value: string) {
-    const body = await this.request("GET", "/records", {
-      query: { form_id: formId, [`filter[field_${fieldId}]`]: value, "page[size]": 25, "page[number]": 1 },
-    });
+  async findByFields(formId: number, criteria: { key: string; value: string; kind: "text" | "date" }[]) {
+    const query: Query = { form_id: formId, "page[size]": 25, "page[number]": 1 };
+    for (const c of criteria) query[`filter[${c.key}]`] = c.value;
+    const body = await this.request("GET", "/records", { query });
     const data: any[] = Array.isArray(body?.data) ? body.data : [];
     return data
       .map((r) => ({ id: Number(r.id), attributes: attrsOf(r) }))
-      .filter((r) => norm(r.attributes[`field_${fieldId}`]) === norm(value));
+      .filter((r) => criteria.every((c) => sameValue(r.attributes[c.key], c.value, c.kind)));
   }
 
   /** A short human label for a record, e.g. "Jane Doe", built from the form's fields. */
@@ -327,14 +326,16 @@ export class ApricotClient {
   }
 
   /** What the user sees for a record: "Jane Doe" or, for Tier 2 records, "Jane Doe · 2022-04-21". */
-  async describe(fields: FieldInfo[], rec: { id: number; attributes: Record<string, any> }, fileFieldId: number): Promise<RecordMatch> {
+  async describe(fields: FieldInfo[], rec: { id: number; attributes: Record<string, any> }, fileFieldIds: number[]): Promise<RecordMatch> {
     let label = this.recordLabel(fields, rec.attributes, rec.id);
     const parentId = Number(rec.attributes.parent_id ?? 0);
     if (parentId > 0) {
       const parent = await this.parentLabel(parentId);
       if (parent) label = label.startsWith("Record ") ? parent : `${parent} · ${label}`;
     }
-    return { id: rec.id, label, existingFile: attachedFile(rec.attributes, fileFieldId) };
+    const files: RecordMatch["files"] = {};
+    for (const id of fileFieldIds) files[id] = attachedFile(rec.attributes, id);
+    return { id: rec.id, label, files };
   }
 
   /**

@@ -1,23 +1,64 @@
 @import "tailwindcss";
 
+/*
+  Bonterra palette (from bonterratech.com), used subtly on a light theme.
+    brand = Bonterra Primary (deep indigo)   → text, buttons, selection
+    lime  = Bonterra Secondary (#7CFF01)     → small accents, success, progress
+    sky   = Bonterra Tertiary (blue)         → information
+    stone = cool neutrals tinted with the Primary indigo
+*/
 @theme {
   --font-sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --color-apricot-50: #fff7ef;
-  --color-apricot-100: #ffecd9;
-  --color-apricot-200: #fdd4ad;
-  --color-apricot-300: #fbb57a;
-  --color-apricot-400: #f7924a;
-  --color-apricot-500: #ee7526;
-  --color-apricot-600: #d85d17;
-  --color-apricot-700: #b34715;
-  --color-apricot-800: #8f3a18;
-  --color-apricot-900: #743217;
+
+  --color-brand-50: #f6f5f9;
+  --color-brand-100: #e7e6eb;
+  --color-brand-200: #cfccd6;
+  --color-brand-300: #b7b3c2;
+  --color-brand-400: #9f99ad;
+  --color-brand-500: #878099;
+  --color-brand-600: #564d70;
+  --color-brand-700: #3e335c;
+  --color-brand-800: #261a47;
+  --color-brand-900: #0e0033;
+
+  --color-lime-50: #f4ffe8;
+  --color-lime-100: #e5ffcc;
+  --color-lime-200: #cbff99;
+  --color-lime-300: #b0ff67;
+  --color-lime-400: #96ff34;
+  --color-lime-500: #7cff01;
+  --color-lime-600: #63cc01;
+  --color-lime-700: #4a9901;
+  --color-lime-800: #326600;
+  --color-lime-900: #193300;
+
+  --color-sky-50: #eef5ff;
+  --color-sky-100: #cce1fe;
+  --color-sky-200: #99c3fd;
+  --color-sky-300: #67a4fd;
+  --color-sky-400: #3486fc;
+  --color-sky-500: #0168fb;
+  --color-sky-600: #0153c9;
+  --color-sky-700: #013e97;
+  --color-sky-800: #002a64;
+  --color-sky-900: #001532;
+
+  --color-stone-50: #f8f8fa;
+  --color-stone-100: #f0eff3;
+  --color-stone-200: #e2e0e8;
+  --color-stone-300: #cfccd6;
+  --color-stone-400: #9f99ad;
+  --color-stone-500: #6e6785;
+  --color-stone-600: #564d70;
+  --color-stone-700: #3e335c;
+  --color-stone-800: #261a47;
+  --color-stone-900: #0e0033;
 }
 
 html, body, #root { height: 100%; }
 body {
-  background: #fbfaf8;
-  color: #1c1917;
+  background: #f8f8fa;
+  color: #0e0033;
   -webkit-font-smoothing: antialiased;
 }
 

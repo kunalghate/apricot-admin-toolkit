@@ -1,24 +1,28 @@
-// Collecting dropped files/folders and pulling identifiers out of file names.
+// Files in the browser: dragged-in files, and listings of files that live elsewhere
+// (this computer, a file server, a zip). Plus pulling identifiers out of file names.
 
-export interface FileItem {
+import type { FileRef } from "../../shared/types";
+
+export interface FileItem extends FileRef {
   id: string;
-  file: File;
-  /** Path relative to what the user dropped, e.g. "Jane Doe 5531/consent.pdf". */
-  path: string;
+  /** Only for files dragged onto the page. Everything else is read by the local server. */
+  file?: File;
 }
 
 const IGNORED = new Set([".ds_store", "thumbs.db", "desktop.ini"]);
 const isJunk = (name: string) => IGNORED.has(name.toLowerCase()) || name.startsWith("~$") || name.startsWith("._");
 
 let counter = 0;
-const makeItem = (file: File, path: string): FileItem => ({ id: `f${++counter}`, file, path });
+const nextId = () => `f${++counter}`;
+export const fromRef = (r: FileRef): FileItem => ({ ...r, id: nextId() });
+const fromFile = (file: File, path: string): FileItem => ({ id: nextId(), file, path, name: file.name, size: file.size });
 
 /** From an <input type="file"> (files or a folder). */
 export function fromFileList(list: FileList | null): FileItem[] {
   if (!list) return [];
   return [...list]
     .filter((f) => !isJunk(f.name))
-    .map((f) => makeItem(f, (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name));
+    .map((f) => fromFile(f, (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name));
 }
 
 /** From a drag-and-drop, walking into folders. */
@@ -32,7 +36,7 @@ export async function fromDataTransfer(dt: DataTransfer): Promise<FileItem[]> {
   const walk = async (entry: FileSystemEntry, prefix: string): Promise<void> => {
     if (entry.isFile) {
       const file = await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej));
-      if (!isJunk(file.name)) out.push(makeItem(file, prefix + file.name));
+      if (!isJunk(file.name)) out.push(fromFile(file, prefix + file.name));
     } else if (entry.isDirectory) {
       const reader = (entry as FileSystemDirectoryEntry).createReader();
       // readEntries returns results in batches; keep reading until empty.
@@ -47,43 +51,65 @@ export async function fromDataTransfer(dt: DataTransfer): Promise<FileItem[]> {
   return out;
 }
 
-export type KeyRule = "first_number" | "before_separator" | "whole_name" | "folder";
-
-export const KEY_RULES: { id: KeyRule; label: string; example: string }[] = [
-  { id: "first_number", label: "The first number in the file name", example: "consent_5531.pdf → 5531" },
-  { id: "before_separator", label: "Everything before the first _ or space", example: "CL-0042_consent.pdf → CL-0042" },
-  { id: "whole_name", label: "The whole file name", example: "CL-0042.pdf → CL-0042" },
-  { id: "folder", label: "The name of the folder it's in", example: "CL-0042/consent.pdf → CL-0042" },
-];
+/** Where one identifier value comes from in a file's name. */
+export type PartSource = { type: "part"; index: number } | { type: "number" } | { type: "whole" } | { type: "folder" };
 
 export function stripExtension(name: string) {
   const i = name.lastIndexOf(".");
   return i > 0 ? name.slice(0, i) : name;
 }
 
-export function extractKey(item: FileItem, rule: KeyRule): string | null {
-  const base = stripExtension(item.file.name).trim();
-  switch (rule) {
-    case "first_number":
-      return base.match(/\d+/)?.[0] ?? null;
-    case "before_separator":
-      return base.split(/[_\s]+/)[0]?.trim() || null;
-    case "whole_name":
-      return base || null;
-    case "folder": {
-      const parts = item.path.split("/");
-      return parts.length > 1 ? parts[parts.length - 2]!.trim() || null : null;
-    }
+/** Split a file name into parts at underscores, spaces and commas. Dashes are kept (dates, IDs like CL-0042). */
+export function nameParts(item: FileRef): string[] {
+  return stripExtension(item.name).split(/[_\s,]+/).map((p) => p.trim()).filter(Boolean);
+}
+
+export function folderName(item: FileRef): string | null {
+  const parts = item.path.replace(/\\/g, "/").split("/");
+  return parts.length > 1 ? parts[parts.length - 2]!.trim() || null : null;
+}
+
+export function extractValue(item: FileRef, src: PartSource): string | null {
+  switch (src.type) {
+    case "part":
+      return nameParts(item)[src.index] ?? null;
+    case "number":
+      return stripExtension(item.name).match(/\d+/)?.[0] ?? null;
+    case "whole":
+      return stripExtension(item.name).trim() || null;
+    case "folder":
+      return folderName(item);
   }
 }
 
-/** Pick a sensible default rule by looking at the files. */
-export function suggestRule(items: FileItem[], byRecordId: boolean): KeyRule {
-  if (byRecordId) return "first_number";
-  const sample = items.slice(0, 50);
-  const inFolders = sample.filter((i) => i.path.includes("/")).length;
-  const folders = new Set(sample.map((i) => i.path.split("/").slice(-2, -1)[0]));
-  if (inFolders === sample.length && folders.size > 1) return "folder";
-  const withSep = sample.filter((i) => /[_\s]/.test(stripExtension(i.file.name))).length;
-  return withSep > sample.length / 2 ? "before_separator" : "whole_name";
+export const sourceId = (s: PartSource) => (s.type === "part" ? `part:${s.index}` : s.type);
+export const parseSourceId = (id: string): PartSource =>
+  id.startsWith("part:") ? { type: "part", index: Number(id.slice(5)) } : ({ type: id } as PartSource);
+
+export const looksDate = (s: string) => /^\d{4}-\d{1,2}-\d{1,2}$|^\d{1,2}[-./]\d{1,2}[-./]\d{4}$|^\d{8}$/.test(s.trim());
+
+/**
+ * Sensible defaults: dates go to date-looking parts, the record ID to the first number,
+ * and other identifiers to the remaining parts in order.
+ */
+export function guessSources(items: FileRef[], targets: { kind: "text" | "date" | "record_id" }[]): PartSource[] {
+  const sample = items[0];
+  if (!sample) return targets.map(() => ({ type: "whole" }));
+  const parts = nameParts(sample);
+  const inFolders = items.slice(0, 50).every((i) => i.path.includes("/"));
+  if (targets.length === 1) {
+    const t = targets[0]!;
+    if (t.kind === "record_id") return [{ type: "number" }];
+    if (parts.length <= 1) return [inFolders && parts.length === 0 ? { type: "folder" } : { type: "whole" }];
+    return [{ type: "part", index: 0 }];
+  }
+  const used = new Set<number>();
+  return targets.map((t) => {
+    const idx = parts.findIndex((p, i) => !used.has(i) && (t.kind === "date" ? looksDate(p) : !looksDate(p)));
+    if (idx >= 0) {
+      used.add(idx);
+      return { type: "part", index: idx };
+    }
+    return { type: "whole" };
+  });
 }
